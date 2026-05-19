@@ -1,0 +1,207 @@
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { createNoteFile, readNoteFile, writeNoteFile } from "./file-store";
+import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
+import { scanWorkspace } from "./indexer";
+import type { CreateNoteRequest, UpdateNoteRequest } from "../shared/types";
+
+const port = Number(process.env.PORT ?? 4177);
+const distPath = resolve(process.cwd(), "dist");
+
+const server = Bun.serve({
+  port,
+  async fetch(request) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders() });
+    }
+
+    try {
+      const url = new URL(request.url);
+
+      if (url.pathname.startsWith("/api/")) {
+        return await handleApiRequest(request, url);
+      }
+
+      return await serveClient(url.pathname);
+    } catch (error) {
+      return jsonResponse(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        statusForError(error),
+      );
+    }
+  },
+});
+
+console.log(`Repo Notes listening on http://127.0.0.1:${server.port}`);
+
+async function handleApiRequest(request: Request, url: URL) {
+  if (request.method === "GET" && url.pathname === "/api/health") {
+    return jsonResponse({ ok: true });
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/config") {
+    return jsonResponse(await loadWorkspaceConfig());
+  }
+
+  if (request.method === "PUT" && url.pathname === "/api/config") {
+    const body = (await request.json()) as { rootPath?: unknown };
+    if (typeof body.rootPath !== "string") {
+      throw new HttpError("rootPath is required.", 400);
+    }
+    return jsonResponse(await saveWorkspaceConfig(body.rootPath));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/index") {
+    const config = await loadWorkspaceConfig();
+    if (!config.rootExists) {
+      throw new HttpError("Workspace root does not exist.", 400);
+    }
+    return jsonResponse(await scanWorkspace(config.rootPath));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/files") {
+    const rootRelativePath = url.searchParams.get("path");
+    if (!rootRelativePath) {
+      throw new HttpError("path is required.", 400);
+    }
+
+    const config = await loadWorkspaceConfig();
+    return jsonResponse(await readNoteFile(config.rootPath, rootRelativePath));
+  }
+
+  if (request.method === "PUT" && url.pathname === "/api/files") {
+    const body = (await request.json()) as Partial<UpdateNoteRequest>;
+    if (typeof body.rootRelativePath !== "string" || typeof body.content !== "string") {
+      throw new HttpError("rootRelativePath and content are required.", 400);
+    }
+
+    const config = await loadWorkspaceConfig();
+    return jsonResponse(
+      await writeNoteFile(config.rootPath, {
+        rootRelativePath: body.rootRelativePath,
+        content: body.content,
+      }),
+    );
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/files") {
+    const body = (await request.json()) as Partial<CreateNoteRequest>;
+    if (
+      typeof body.repoName !== "string" ||
+      typeof body.repoRelativePath !== "string" ||
+      typeof body.content !== "string"
+    ) {
+      throw new HttpError("repoName, repoRelativePath, and content are required.", 400);
+    }
+
+    const config = await loadWorkspaceConfig();
+    return jsonResponse(
+      await createNoteFile(config.rootPath, {
+        repoName: body.repoName,
+        repoRelativePath: body.repoRelativePath,
+        content: body.content,
+      }),
+      201,
+    );
+  }
+
+  throw new HttpError("API route not found.", 404);
+}
+
+async function serveClient(pathname: string) {
+  const normalizedPath = pathname === "/" ? "/index.html" : pathname;
+  const requestedPath = resolve(distPath, `.${decodeURIComponent(normalizedPath)}`);
+
+  if (!isInside(distPath, requestedPath)) {
+    throw new HttpError("Not found.", 404);
+  }
+
+  const requestedFile = Bun.file(requestedPath);
+  if (await requestedFile.exists()) {
+    return new Response(requestedFile, {
+      headers: {
+        "content-type": contentTypeForPath(requestedPath),
+      },
+    });
+  }
+
+  const indexFile = Bun.file(join(distPath, "index.html"));
+  if (await indexFile.exists()) {
+    return new Response(indexFile, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+      },
+    });
+  }
+
+  return new Response("Run `bun run dev` for the web app or `bun run build` before `bun run start`.", {
+    status: 404,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+    },
+  });
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders(),
+      "content-type": "application/json; charset=utf-8",
+    },
+  });
+}
+
+function corsHeaders() {
+  return {
+    "access-control-allow-origin": "http://127.0.0.1:5173",
+    "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+    "access-control-allow-headers": "content-type",
+  };
+}
+
+function statusForError(error: unknown) {
+  if (error instanceof HttpError) {
+    return error.status;
+  }
+
+  if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+    return 404;
+  }
+
+  if (error instanceof SyntaxError) {
+    return 400;
+  }
+
+  return 500;
+}
+
+function isInside(rootPath: string, targetPath: string) {
+  const targetRelativeToRoot = relative(rootPath, targetPath);
+  return targetRelativeToRoot === "" || (!targetRelativeToRoot.startsWith("..") && !isAbsolute(targetRelativeToRoot));
+}
+
+function contentTypeForPath(path: string) {
+  switch (extname(path)) {
+    case ".html":
+      return "text/html; charset=utf-8";
+    case ".js":
+      return "text/javascript; charset=utf-8";
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+class HttpError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
