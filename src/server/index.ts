@@ -1,5 +1,5 @@
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
-import { createNoteFile, readNoteFile, writeNoteFile } from "./file-store";
+import { createNoteFile, NoteWriteConflictError, readNoteFile, writeNoteFile } from "./file-store";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { scanWorkspace } from "./indexer";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../shared/types";
@@ -33,7 +33,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Repo Notes listening on http://127.0.0.1:${server.port}`);
+console.log(`DevShelf listening on http://127.0.0.1:${server.port}`);
 
 async function handleApiRequest(request: Request, url: URL) {
   if (request.method === "GET" && url.pathname === "/api/health") {
@@ -72,8 +72,12 @@ async function handleApiRequest(request: Request, url: URL) {
 
   if (request.method === "PUT" && url.pathname === "/api/files") {
     const body = (await request.json()) as Partial<UpdateNoteRequest>;
-    if (typeof body.rootRelativePath !== "string" || typeof body.content !== "string") {
-      throw new HttpError("rootRelativePath and content are required.", 400);
+    if (
+      typeof body.rootRelativePath !== "string" ||
+      typeof body.content !== "string" ||
+      typeof body.expectedUpdatedAtMs !== "number"
+    ) {
+      throw new HttpError("rootRelativePath, content, and expectedUpdatedAtMs are required.", 400);
     }
 
     const config = await loadWorkspaceConfig();
@@ -81,6 +85,7 @@ async function handleApiRequest(request: Request, url: URL) {
       await writeNoteFile(config.rootPath, {
         rootRelativePath: body.rootRelativePath,
         content: body.content,
+        expectedUpdatedAtMs: body.expectedUpdatedAtMs,
       }),
     );
   }
@@ -164,6 +169,10 @@ function corsHeaders() {
 function statusForError(error: unknown) {
   if (error instanceof HttpError) {
     return error.status;
+  }
+
+  if (error instanceof NoteWriteConflictError) {
+    return 409;
   }
 
   if (error instanceof Error && "code" in error && error.code === "ENOENT") {

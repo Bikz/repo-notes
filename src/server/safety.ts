@@ -11,6 +11,26 @@ export const supportedNoteExtensions = new Set<SupportedNoteExtension>([
   ".htm",
 ]);
 
+export const ignoredDirectoryNames = new Set([
+  ".git",
+  ".build",
+  ".next",
+  ".nuxt",
+  ".parcel-cache",
+  ".svelte-kit",
+  ".turbo",
+  ".vercel",
+  "DerivedData",
+  "build",
+  "coverage",
+  "deps",
+  "dist",
+  "node_modules",
+  "Pods",
+  "target",
+  "vendor",
+]);
+
 export function resolveWorkspaceRoot(rootPath: string) {
   const expanded = rootPath.startsWith("~/") ? join(homedir(), rootPath.slice(2)) : rootPath;
 
@@ -52,6 +72,18 @@ export function assertSupportedNoteExtension(filePath: string): SupportedNoteExt
   return extension;
 }
 
+export function assertAllowedNotePath(filePath: string) {
+  const normalizedPath = filePath.replaceAll("\\", "/");
+  const pathParts = normalizedPath.split("/").filter(Boolean);
+  const directoryParts = pathParts.slice(0, -1);
+
+  for (const part of directoryParts) {
+    if (shouldSkipDirectory(part)) {
+      throw new Error(`Path includes ignored directory: ${part}`);
+    }
+  }
+}
+
 export function noteKindForExtension(extension: SupportedNoteExtension): NoteKind {
   if (extension === ".txt") {
     return "text";
@@ -72,3 +104,14 @@ export function toRepoRelativePath(repoPath: string, absolutePath: string) {
   return relative(repoPath, absolutePath).split(sep).join("/");
 }
 
+export function shouldSkipDirectory(name: string) {
+  if (ignoredDirectoryNames.has(name)) {
+    return true;
+  }
+
+  return name.startsWith(".") && name !== ".github" && name !== ".well-known";
+}
+
+export function shouldSkipWorkspaceChildDirectory(name: string) {
+  return ignoredDirectoryNames.has(name) || name.startsWith(".");
+}

@@ -2,15 +2,19 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import type { CreateNoteRequest, NoteFilePayload, NoteSummary, UpdateNoteRequest } from "../shared/types";
 import {
+  assertAllowedNotePath,
   assertSupportedNoteExtension,
   noteKindForExtension,
   resolveWorkspaceFilePath,
   resolveWorkspaceRoot,
+  shouldSkipWorkspaceChildDirectory,
+  toRootRelativePath,
 } from "./safety";
 
 export async function readNoteFile(rootPath: string, rootRelativePath: string): Promise<NoteFilePayload> {
   const absolutePath = resolveWorkspaceFilePath(rootPath, rootRelativePath);
   assertSupportedNoteExtension(rootRelativePath);
+  assertAllowedNotePath(rootRelativePath);
 
   const [content, fileStat] = await Promise.all([readFile(absolutePath, "utf8"), stat(absolutePath)]);
   if (!fileStat.isFile()) {
@@ -29,10 +33,15 @@ export async function writeNoteFile(
 ): Promise<NoteFilePayload> {
   const absolutePath = resolveWorkspaceFilePath(rootPath, request.rootRelativePath);
   assertSupportedNoteExtension(request.rootRelativePath);
+  assertAllowedNotePath(request.rootRelativePath);
 
   const before = await stat(absolutePath);
   if (!before.isFile()) {
     throw new Error("Requested note path is not a file.");
+  }
+
+  if (!sameTimestamp(before.mtimeMs, request.expectedUpdatedAtMs)) {
+    throw new NoteWriteConflictError();
   }
 
   await writeFile(absolutePath, request.content, "utf8");
@@ -44,7 +53,8 @@ export async function createNoteFile(
   request: CreateNoteRequest,
 ): Promise<NoteFilePayload> {
   assertSafeRepoName(request.repoName);
-  assertSupportedNoteExtension(request.repoRelativePath);
+  const normalizedRepoRelativePath = request.repoRelativePath.replaceAll("\\", "/");
+  assertSupportedNoteExtension(normalizedRepoRelativePath);
 
   const root = resolveWorkspaceRoot(rootPath);
   const repoPath = resolveWorkspaceFilePath(root, request.repoName);
@@ -53,8 +63,9 @@ export async function createNoteFile(
     throw new Error("Selected repository is not a directory.");
   }
 
-  const rootRelativePath = `${request.repoName}/${request.repoRelativePath.replaceAll("\\", "/")}`;
-  const absolutePath = resolveWorkspaceFilePath(root, rootRelativePath);
+  const absolutePath = resolveRepoFilePath(repoPath, normalizedRepoRelativePath);
+  assertAllowedNotePath(normalizedRepoRelativePath);
+  const rootRelativePath = toRootRelativePath(root, absolutePath);
 
   await mkdir(dirname(absolutePath), { recursive: true });
   await writeFile(absolutePath, request.content, { encoding: "utf8", flag: "wx" }).catch((error) => {
@@ -87,7 +98,36 @@ function noteFromStat(rootRelativePath: string, fileStat: Awaited<ReturnType<typ
 }
 
 function assertSafeRepoName(repoName: string) {
-  if (!repoName || repoName.includes("/") || repoName.includes("\\") || repoName === "." || repoName === "..") {
+  if (
+    !repoName ||
+    repoName.includes("/") ||
+    repoName.includes("\\") ||
+    repoName === "." ||
+    repoName === ".." ||
+    shouldSkipWorkspaceChildDirectory(repoName)
+  ) {
     throw new Error("Repository name must be a direct child of the workspace root.");
+  }
+}
+
+function resolveRepoFilePath(repoPath: string, repoRelativePath: string) {
+  try {
+    return resolveWorkspaceFilePath(repoPath, repoRelativePath);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("outside the workspace root")) {
+      throw new Error("New note path must stay inside the selected repository.", { cause: error });
+    }
+
+    throw error;
+  }
+}
+
+function sameTimestamp(actual: number, expected: number) {
+  return Number.isFinite(expected) && Math.abs(actual - expected) <= 1;
+}
+
+export class NoteWriteConflictError extends Error {
+  constructor() {
+    super("This note changed on disk. Refresh the note before saving again.");
   }
 }

@@ -14,6 +14,7 @@
     "start": "bun run src/server/index.ts",
     "lint": "eslint .",
     "preview": "vite preview",
+    "smoke": "bun run scripts/smoke.ts",
     "test": "bun test",
     "typecheck": "tsc -b"
   },

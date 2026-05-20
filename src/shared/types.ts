@@ -53,5 +53,5 @@ export interface CreateNoteRequest {
 export interface UpdateNoteRequest {
   rootRelativePath: string;
   content: string;
+  expectedUpdatedAtMs: number;
 }
-

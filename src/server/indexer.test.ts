@@ -15,7 +15,10 @@ async function createTempWorkspace() {
   await mkdir(join(root, "alpha", "node_modules", "pkg"), { recursive: true });
   await mkdir(join(root, "alpha", "dist"), { recursive: true });
   await mkdir(join(root, "alpha", ".cache"), { recursive: true });
+  await mkdir(join(root, "alpha", ".github", "workflows"), { recursive: true });
   await mkdir(join(root, "alpha", "deps", "vendored"), { recursive: true });
+  await mkdir(join(root, ".cache", "repo"), { recursive: true });
+  await mkdir(join(root, ".github", "workflows"), { recursive: true });
   await mkdir(join(root, "beta", ".git"), { recursive: true });
   await mkdir(join(root, "beta", "notes"), { recursive: true });
 
@@ -25,7 +28,10 @@ async function createTempWorkspace() {
   await writeFile(join(root, "alpha", "node_modules", "pkg", "README.md"), "# Dependency\n");
   await writeFile(join(root, "alpha", "dist", "build-note.md"), "# Build output\n");
   await writeFile(join(root, "alpha", ".cache", "artifact.md"), "# Cache output\n");
+  await writeFile(join(root, "alpha", ".github", "workflows", "README.md"), "# Workflow notes\n");
   await writeFile(join(root, "alpha", "deps", "vendored", "README.md"), "# Vendored dep\n");
+  await writeFile(join(root, ".cache", "repo", "README.md"), "# Hidden root cache\n");
+  await writeFile(join(root, ".github", "workflows", "README.md"), "# Root workflow notes\n");
   await writeFile(join(root, "alpha", "image.png"), "not a note");
   await writeFile(join(root, "beta", "notes", "decision.markdown"), "# Decision\n");
 
@@ -47,6 +53,7 @@ test("scanWorkspace indexes supported note files across child repositories", asy
     "alpha/README.md",
     "alpha/docs/page.html",
     "alpha/docs/plan.txt",
+    "alpha/.github/workflows/README.md",
     "beta/notes/decision.markdown",
   ]);
   expect(index.notes.every((note) => note.byteSize > 0)).toBe(true);

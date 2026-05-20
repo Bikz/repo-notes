@@ -33,14 +33,29 @@ test("readNoteFile returns note metadata and content", async () => {
 
 test("writeNoteFile updates an existing note in place", async () => {
   const root = await createTempWorkspace();
+  const before = await readNoteFile(root, "alpha/docs/plan.md");
 
   const payload = await writeNoteFile(root, {
     rootRelativePath: "alpha/docs/plan.md",
     content: "# Updated\n",
+    expectedUpdatedAtMs: before.note.updatedAtMs,
   });
 
   expect(payload.content).toBe("# Updated\n");
   await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Updated\n");
+});
+
+test("writeNoteFile rejects stale writes without overwriting the file", async () => {
+  const root = await createTempWorkspace();
+
+  await expect(
+    writeNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      content: "# Stale update\n",
+      expectedUpdatedAtMs: 0,
+    }),
+  ).rejects.toThrow("changed on disk");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Plan\n");
 });
 
 test("createNoteFile creates a new supported file without overwriting", async () => {
@@ -76,3 +91,37 @@ test("file operations reject traversal and unsupported extensions", async () => 
   ).rejects.toThrow("Unsupported");
 });
 
+test("file operations reject ignored workspace directories", async () => {
+  const root = await createTempWorkspace();
+  await mkdir(join(root, "alpha", "node_modules", "pkg"), { recursive: true });
+  await writeFile(join(root, "alpha", "node_modules", "pkg", "README.md"), "# Dependency\n");
+
+  await expect(readNoteFile(root, "alpha/node_modules/pkg/README.md")).rejects.toThrow("ignored");
+  await expect(
+    writeNoteFile(root, {
+      rootRelativePath: "alpha/node_modules/pkg/README.md",
+      content: "# Updated\n",
+      expectedUpdatedAtMs: 0,
+    }),
+  ).rejects.toThrow("ignored");
+  await expect(
+    createNoteFile(root, {
+      repoName: "alpha",
+      repoRelativePath: "dist/generated.md",
+      content: "# Generated\n",
+    }),
+  ).rejects.toThrow("ignored");
+});
+
+test("createNoteFile keeps new files inside the selected repository", async () => {
+  const root = await createTempWorkspace();
+  await mkdir(join(root, "beta"), { recursive: true });
+
+  await expect(
+    createNoteFile(root, {
+      repoName: "alpha",
+      repoRelativePath: "../beta/hijack.md",
+      content: "# Hijack\n",
+    }),
+  ).rejects.toThrow("selected repository");
+});

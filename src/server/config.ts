@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import type { WorkspaceConfig } from "../shared/types";
 import { resolveWorkspaceRoot } from "./safety";
 
-const configPath = join(homedir(), ".repo-notes", "config.json");
+const defaultConfigPath = join(homedir(), ".repo-notes", "config.json");
 
 interface StoredConfig {
   rootPath?: string;
@@ -27,8 +27,9 @@ export async function saveWorkspaceConfig(rootPath: string): Promise<WorkspaceCo
     throw new Error("Workspace root does not exist or is not a directory.");
   }
 
-  await mkdir(dirname(configPath), { recursive: true });
-  await writeFile(configPath, JSON.stringify({ rootPath: resolvedRoot }, null, 2), "utf8");
+  const path = workspaceConfigPath();
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, JSON.stringify({ rootPath: resolvedRoot }, null, 2), "utf8");
 
   return {
     rootPath: resolvedRoot,
@@ -38,7 +39,7 @@ export async function saveWorkspaceConfig(rootPath: string): Promise<WorkspaceCo
 
 async function readStoredConfig(): Promise<StoredConfig> {
   try {
-    return JSON.parse(await readFile(configPath, "utf8")) as StoredConfig;
+    return JSON.parse(await readFile(workspaceConfigPath(), "utf8")) as StoredConfig;
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return {};
@@ -67,3 +68,6 @@ async function directoryExists(path: string) {
   }
 }
 
+function workspaceConfigPath() {
+  return process.env.REPO_NOTES_CONFIG_PATH || defaultConfigPath;
+}

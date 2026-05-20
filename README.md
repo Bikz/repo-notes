@@ -1,12 +1,12 @@
-# Repo Notes
+# DevShelf
 
-Repo Notes is a local-first notes app for people who keep their real notes, plans, prompts, specs, and docs inside many different repositories.
+DevShelf is a local-first notes app for people who keep their real notes, plans, prompts, specs, and docs inside many different repositories.
 
 Point it at a workspace root such as `~/Developer`, and it indexes supported text-like files across each child repository. Selecting a note reads the file directly from disk. Saving writes back to that same local file, so normal Git workflows still own history, review, and publishing.
 
 ## What It Indexes
 
-Repo Notes currently scans direct child directories under the configured workspace root and indexes:
+DevShelf currently scans direct child directories under the configured workspace root and indexes:
 
 - Markdown: `.md`, `.markdown`, `.mdx`
 - Text: `.txt`
@@ -50,12 +50,14 @@ The Bun API runs on `http://127.0.0.1:4177`. The Vite dev server proxies `/api/*
 ```sh
 bun test
 bun run typecheck
+bun run lint
 bun run build
+bun run smoke
 ```
 
 ## Safety Model
 
-Repo Notes is intentionally local-only. It does not upload file contents. File operations are constrained to the configured workspace root and only supported note extensions can be read, edited, or created.
+DevShelf is intentionally local-only. It does not upload file contents. File operations are constrained to the configured workspace root and only supported note extensions can be read, edited, or created.
 
 The configured root path is stored at:
 
@@ -63,7 +65,7 @@ The configured root path is stored at:
 ~/.repo-notes/config.json
 ```
 
-Do not point Repo Notes at directories containing private data you do not want listed in the app.
+Do not point DevShelf at directories containing private data you do not want listed in the app.
 
 ## License
 

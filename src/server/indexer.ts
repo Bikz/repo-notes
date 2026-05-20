@@ -5,29 +5,11 @@ import {
   assertSupportedNoteExtension,
   noteKindForExtension,
   resolveWorkspaceRoot,
+  shouldSkipDirectory,
+  shouldSkipWorkspaceChildDirectory,
   toRepoRelativePath,
   toRootRelativePath,
 } from "./safety";
-
-const ignoredDirectoryNames = new Set([
-  ".git",
-  ".build",
-  ".next",
-  ".nuxt",
-  ".parcel-cache",
-  ".svelte-kit",
-  ".turbo",
-  ".vercel",
-  "DerivedData",
-  "build",
-  "coverage",
-  "deps",
-  "dist",
-  "node_modules",
-  "Pods",
-  "target",
-  "vendor",
-]);
 
 const defaultMaxFileBytes = 2 * 1024 * 1024;
 
@@ -43,7 +25,7 @@ export async function scanWorkspace(rootPath: string, options: ScanOptions = {})
   const notes: NoteSummary[] = [];
 
   for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    if (!entry.isDirectory() || ignoredDirectoryNames.has(entry.name)) {
+    if (!entry.isDirectory() || shouldSkipWorkspaceChildDirectory(entry.name)) {
       continue;
     }
 
@@ -138,14 +120,6 @@ function isSupportedExtension(extension: string) {
   } catch {
     return false;
   }
-}
-
-function shouldSkipDirectory(name: string) {
-  if (ignoredDirectoryNames.has(name)) {
-    return true;
-  }
-
-  return name.startsWith(".") && name !== ".github" && name !== ".well-known";
 }
 
 function titleFromPath(filePath: string) {

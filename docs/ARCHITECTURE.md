@@ -1,6 +1,6 @@
 # Architecture
 
-Repo Notes has two runtime pieces:
+DevShelf has two runtime pieces:
 
 - A Bun local API that owns filesystem access.
 - A Vite/React client that owns filtering, rendering, editing, and creation workflows.
