@@ -2,7 +2,7 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createNoteFile, readNoteFile, writeNoteFile } from "./file-store";
+import { createNoteFile, moveNoteFile, readNoteFile, writeNoteFile } from "./file-store";
 
 const roots: string[] = [];
 
@@ -78,6 +78,46 @@ test("createNoteFile creates a new supported file without overwriting", async ()
   ).rejects.toThrow("already exists");
 });
 
+test("moveNoteFile renames an existing note inside the same repository", async () => {
+  const root = await createTempWorkspace();
+  const before = await readNoteFile(root, "alpha/docs/plan.md");
+
+  const payload = await moveNoteFile(root, {
+    rootRelativePath: "alpha/docs/plan.md",
+    repoRelativePath: "notes/renamed-plan.md",
+    expectedUpdatedAtMs: before.note.updatedAtMs,
+  });
+
+  expect(payload.note.rootRelativePath).toBe("alpha/notes/renamed-plan.md");
+  expect(payload.content).toBe("# Plan\n");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).rejects.toThrow();
+  await expect(readFile(join(root, "alpha", "notes", "renamed-plan.md"), "utf8")).resolves.toBe("# Plan\n");
+});
+
+test("moveNoteFile rejects stale moves and existing destinations", async () => {
+  const root = await createTempWorkspace();
+  await mkdir(join(root, "alpha", "notes"), { recursive: true });
+  await writeFile(join(root, "alpha", "notes", "existing.md"), "# Existing\n");
+  const before = await readNoteFile(root, "alpha/docs/plan.md");
+
+  await expect(
+    moveNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      repoRelativePath: "notes/stale-plan.md",
+      expectedUpdatedAtMs: 0,
+    }),
+  ).rejects.toThrow("changed on disk");
+  await expect(
+    moveNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      repoRelativePath: "notes/existing.md",
+      expectedUpdatedAtMs: before.note.updatedAtMs,
+    }),
+  ).rejects.toThrow("already exists");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Plan\n");
+  await expect(readFile(join(root, "alpha", "notes", "existing.md"), "utf8")).resolves.toBe("# Existing\n");
+});
+
 test("file operations reject traversal and unsupported extensions", async () => {
   const root = await createTempWorkspace();
 
@@ -147,6 +187,32 @@ test("createNoteFile rejects symlinked parent directories before writing outside
       content: "# Escaped\n",
     }),
   ).rejects.toThrow("symlink");
+  await expect(readFile(join(outsideRoot, "escaped.md"), "utf8")).rejects.toThrow();
+});
+
+test("moveNoteFile rejects traversal and symlinked destination parents", async () => {
+  const root = await createTempWorkspace();
+  await mkdir(join(root, "beta"), { recursive: true });
+  const outsideRoot = await mkdtemp(join(tmpdir(), "repo-notes-move-outside-"));
+  roots.push(outsideRoot);
+  await symlink(outsideRoot, join(root, "alpha", "linked"));
+  const before = await readNoteFile(root, "alpha/docs/plan.md");
+
+  await expect(
+    moveNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      repoRelativePath: "../beta/hijack.md",
+      expectedUpdatedAtMs: before.note.updatedAtMs,
+    }),
+  ).rejects.toThrow("selected repository");
+  await expect(
+    moveNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      repoRelativePath: "linked/escaped.md",
+      expectedUpdatedAtMs: before.note.updatedAtMs,
+    }),
+  ).rejects.toThrow("symlink");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Plan\n");
   await expect(readFile(join(outsideRoot, "escaped.md"), "utf8")).rejects.toThrow();
 });
 

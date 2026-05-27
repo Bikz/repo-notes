@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type {
   DocReviewPayload,
   DocSearchPayload,
+  MoveNoteRequest,
   NoteFilePayload,
   WorkspaceConfig,
   WorkspaceIndex,
@@ -72,6 +73,32 @@ try {
   });
   assert(updatedPayload.content === "# Updated smoke note\n", "update response should include new content");
 
+  const movedPayload = await requestJson<NoteFilePayload>(`${baseUrl}/api/files`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      rootRelativePath: "alpha/docs/README.md",
+      repoRelativePath: "docs/renamed-smoke-note.md",
+      expectedUpdatedAtMs: updatedPayload.note.updatedAtMs,
+    } satisfies MoveNoteRequest),
+  });
+  assert(movedPayload.note.rootRelativePath === "alpha/docs/renamed-smoke-note.md", "moved note path should match");
+  await assertRejects(
+    requestJson<NoteFilePayload>(`${baseUrl}/api/files?path=${encodeURIComponent("alpha/docs/README.md")}`),
+    "ENOENT",
+  );
+  const movedIndex = await requestJson<WorkspaceIndex>(`${baseUrl}/api/index?force=1`);
+  assert(
+    movedIndex.notes.some((note) => note.rootRelativePath === "alpha/docs/renamed-smoke-note.md"),
+    "moved note should be indexed at the new path",
+  );
+  const movedSearch = await requestJson<DocSearchPayload>(
+    `${baseUrl}/api/search?repo=alpha&q=${encodeURIComponent("Updated smoke")}`,
+  );
+  assert(
+    movedSearch.results.some((result) => result.note.rootRelativePath === "alpha/docs/renamed-smoke-note.md"),
+    "search should find moved note content at the new path",
+  );
+
   const createdPayload = await requestJson<NoteFilePayload>(`${baseUrl}/api/files`, {
     method: "POST",
     body: JSON.stringify({
@@ -85,7 +112,7 @@ try {
   const createdContent = await readFile(join(workspaceRoot, "alpha", "notes", "new-smoke-note.md"), "utf8");
   assert(createdContent === "# New smoke note\n", "created file should be persisted on disk");
 
-  console.log("Smoke passed: configured, indexed, reviewed, read, updated, and created notes in a disposable workspace.");
+  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, and created notes in a disposable workspace.");
 } finally {
   server.kill();
   await server.exited.catch(() => undefined);

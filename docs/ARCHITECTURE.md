@@ -35,6 +35,7 @@ Before file contents are read, written, created, or reviewed, Repo Notes checks 
 - `GET /api/review?repo=<repoName>`: reviews one repository.
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
 - `PUT /api/files`: updates an existing note file in place.
+- `PATCH /api/files`: renames or moves an existing note within its current repository.
 - `POST /api/files`: creates a new supported note file inside a selected repository without overwriting.
 
 ## Rendering
@@ -74,3 +75,7 @@ Review payloads are metadata-only: category, severity, repository, root-relative
 The rendered reader intercepts Markdown and HTML preview link clicks in the browser. External links are opened outside the current app tab. Local relative links only open inside Repo Notes when they resolve to a note already present in the current index, and all resulting file reads still go through the normal `/api/files` safety path. Missing local links are surfaced as UI errors instead of navigating the Vite app to an arbitrary relative URL.
 
 Local preview image sources are rewritten to `/api/assets?note=<rootRelativePath>&src=<relativeImagePath>`. The asset endpoint resolves image paths relative to the current note, requires the target to remain inside the selected repository, rejects symlinked path segments, limits served assets to common image extensions, and streams the file without adding it to the note index or metadata cache.
+
+## Move/Rename
+
+Moving a note is intentionally scoped to the note's current repository. The API validates the source path as a supported, non-symlinked note file, checks the loaded modified time to avoid moving stale disk state, validates the destination as a supported repo-relative note path, rejects ignored/generated directories, refuses sibling-repository traversal, checks destination parents for symlinks, and refuses to overwrite an existing file. After a successful move, the in-memory search-content cache is invalidated for both old and new paths, and the client refreshes the metadata index from disk.

@@ -142,3 +142,10 @@
 - Browser proof used a disposable workspace and verified a body-only search match plus clean console:
   - `output/playwright/repo-notes-search-cache-proof.png`
 - Search cache validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, a current-workspace timing probe, and Playwright browser proof.
+- Started the note-organization workflow for product teams by adding a safe rename/move primitive for existing notes.
+- Added same-repo `PATCH /api/files` support with timestamp conflict protection, supported-extension checks, ignored-directory rejection, same-repository destination enforcement, symlinked destination-parent rejection, no-overwrite behavior, and search-cache invalidation for old and new paths.
+- Added a More-menu `Rename or move` drawer in the current dark Notes-style shell. It is disabled for dirty notes, keeps the repo fixed, updates the selected note path before refreshing the index, and clears stale search/review context after a move.
+- Extended smoke coverage to move a disposable note, verify the old path is gone, force-refresh the index, and search the moved content at its new path.
+- Browser proof used a disposable workspace, moved `alpha/docs/move-me.md` to `alpha/docs/renamed/moved-note.md`, verified the old API path returned 404, reloaded, and confirmed the selected reader stayed on the new path with a clean console:
+  - `output/playwright/repo-notes-move-note.png`
+- Move/rename validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.

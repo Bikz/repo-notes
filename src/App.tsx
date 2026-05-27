@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  FilePenLine,
   FilePlus2,
   Folder,
   ListFilter,
@@ -66,6 +67,7 @@ import type {
   DocReviewIssue,
   DocReviewPayload,
   DocReviewSeverity,
+  MoveNoteRequest,
   NoteFilePayload,
   UpdateNoteRequest,
   WorkspaceConfig,
@@ -79,6 +81,10 @@ interface CreateFormState {
   repoName: string;
   repoRelativePath: string;
   content: string;
+}
+
+interface MoveFormState {
+  repoRelativePath: string;
 }
 
 interface OpenNoteOptions {
@@ -96,6 +102,9 @@ const emptyCreateForm: CreateFormState = {
   repoName: "",
   repoRelativePath: "notes/new-note.md",
   content: "# New note\n\n",
+};
+const emptyMoveForm: MoveFormState = {
+  repoRelativePath: "",
 };
 const initialVisibleNoteCount = 300;
 const contentSearchMinLength = 2;
@@ -129,6 +138,7 @@ function App() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
+  const [moveForm, setMoveForm] = useState<MoveFormState>(emptyMoveForm);
   const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
   const [reviewSeverityFilter, setReviewSeverityFilter] = useState<ReviewSeverityFilter>("all");
@@ -140,6 +150,8 @@ function App() {
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -493,7 +505,7 @@ function App() {
       if (shortcut === "save") {
         event.preventDefault();
         const targetElement = event.target instanceof Element ? event.target : null;
-        if (isCreateOpen || targetElement?.closest(".workspace-footer")) {
+        if (isCreateOpen || isMoveOpen || targetElement?.closest(".workspace-footer")) {
           return;
         }
 
@@ -508,6 +520,9 @@ function App() {
         if (isCreateOpen && !closeCreateDrawer()) {
           return;
         }
+        if (isMoveOpen && !closeMoveDrawer()) {
+          return;
+        }
 
         setMobilePane("browse");
         window.requestAnimationFrame(() => {
@@ -519,15 +534,18 @@ function App() {
 
       if (shortcut === "new-note") {
         event.preventDefault();
-        if (repos.length > 0 && !isCreateOpen) {
+        if (repos.length > 0 && !isCreateOpen && !isMoveOpen) {
           openCreateDrawer();
         }
         return;
       }
 
-      if (shortcut === "close-panel" && (isCreateOpen || isMoreOpen || error || notice)) {
+      if (shortcut === "close-panel" && (isCreateOpen || isMoveOpen || isMoreOpen || error || notice)) {
         event.preventDefault();
         if (isCreateOpen && !closeCreateDrawer()) {
+          return;
+        }
+        if (isMoveOpen && !closeMoveDrawer()) {
           return;
         }
 
@@ -702,6 +720,61 @@ function App() {
       setError(messageForError(nextError));
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function moveFile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeFile) {
+      return;
+    }
+
+    if (isDirty) {
+      setError("Save or discard changes before moving this note.");
+      return;
+    }
+
+    setIsMoving(true);
+    setError("");
+    setNotice("");
+
+    const body: MoveNoteRequest = {
+      rootRelativePath: activeFile.note.rootRelativePath,
+      repoRelativePath: moveForm.repoRelativePath.trim(),
+      expectedUpdatedAtMs: activeFile.note.updatedAtMs,
+    };
+
+    try {
+      const movedFile = await requestJson<NoteFilePayload>("/api/files", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      selectedPathRef.current = movedFile.note.rootRelativePath;
+      setActiveFile(movedFile);
+      setEditorValue(movedFile.content);
+      setSelectedPath(movedFile.note.rootRelativePath);
+      setNoteHistory(pushNoteHistory({ entries: [], index: -1 }, movedFile.note.rootRelativePath));
+      setRepoFilter(movedFile.note.repoName);
+      setDocSearch(null);
+      setDocReview(null);
+      setSearchError("");
+      setReviewError("");
+      setReviewSeverityFilter("all");
+      setReviewCategoryFilter("all");
+      setReviewVisibleIssueCount(initialReviewIssueCount);
+      setVisibleNoteCount(initialVisibleNoteCount);
+      setMobilePane("read");
+      setIsMoveOpen(false);
+      setMoveForm({ repoRelativePath: movedFile.note.repoRelativePath });
+      setNotice("Moved note.");
+      await refreshIndex({ force: true, quiet: true });
+    } catch (nextError) {
+      if (isSaveConflictError(nextError)) {
+        setSaveConflictPath(activeFile.note.rootRelativePath);
+      }
+      setError(messageForError(nextError));
+    } finally {
+      setIsMoving(false);
     }
   }
 
@@ -894,6 +967,7 @@ function App() {
   function openCreateDrawer() {
     const preferredRepoName = resolvePreferredCreateRepoName(repoFilter, selectedNote?.repoName);
     setIsMoreOpen(false);
+    setIsMoveOpen(false);
     setCreateForm((current) => ({
       ...current,
       repoName: resolveCreateRepoName(current.repoName, repos, preferredRepoName),
@@ -911,6 +985,33 @@ function App() {
     }
 
     setIsCreateOpen(false);
+    return true;
+  }
+
+  function openMoveDrawer() {
+    if (!selectedNote) {
+      return;
+    }
+
+    setIsMoreOpen(false);
+    setError("");
+    setNotice("");
+    if (isDirty) {
+      setError("Save or discard changes before moving this note.");
+      return;
+    }
+
+    setIsCreateOpen(false);
+    setMoveForm({ repoRelativePath: selectedNote.repoRelativePath });
+    setIsMoveOpen(true);
+  }
+
+  function closeMoveDrawer() {
+    if (isMoving) {
+      return false;
+    }
+
+    setIsMoveOpen(false);
     return true;
   }
 
@@ -1096,6 +1197,15 @@ function App() {
                 >
                   <Copy size={15} />
                   <span>Copy note path</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={openMoveDrawer}
+                  disabled={!selectedNote || isDirty}
+                >
+                  <FilePenLine size={15} />
+                  <span>Rename or move</span>
                 </button>
                 <button
                   type="button"
@@ -1658,6 +1768,51 @@ function App() {
                 <button className="primary-button" type="submit" disabled={isCreating || repos.length === 0}>
                   {isCreating ? <Loader2 className="spin" size={15} /> : <FilePlus2 size={15} />}
                   <span>Create file</span>
+                </button>
+              </form>
+            </aside>
+          </div>
+        )}
+        {isMoveOpen && selectedNote && (
+          <div className="drawer-scrim" role="presentation" onClick={() => void closeMoveDrawer()}>
+            <aside
+              className="create-drawer"
+              aria-labelledby="move-note-title"
+              aria-modal="true"
+              role="dialog"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="drawer-header">
+                <div>
+                  <p className="eyebrow">{selectedNote.repoName}</p>
+                  <h2 id="move-note-title">Rename or move</h2>
+                </div>
+                <button className="round-button" type="button" onClick={() => void closeMoveDrawer()} aria-label="Close">
+                  <X size={16} />
+                </button>
+              </div>
+              <form className="create-form" onSubmit={moveFile}>
+                <label>
+                  <span>Repo</span>
+                  <input value={selectedNote.repoName} disabled spellCheck={false} />
+                </label>
+                <label>
+                  <span>Relative path</span>
+                  <input
+                    value={moveForm.repoRelativePath}
+                    onChange={(event) => setMoveForm({ repoRelativePath: event.target.value })}
+                    placeholder="docs/notes.md"
+                    spellCheck={false}
+                    required
+                  />
+                </label>
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={isMoving || isDirty || !moveForm.repoRelativePath.trim()}
+                >
+                  {isMoving ? <Loader2 className="spin" size={15} /> : <FilePenLine size={15} />}
+                  <span>Move note</span>
                 </button>
               </form>
             </aside>

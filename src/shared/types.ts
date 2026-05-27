@@ -116,3 +116,9 @@ export interface UpdateNoteRequest {
   content: string;
   expectedUpdatedAtMs: number;
 }
+
+export interface MoveNoteRequest {
+  rootRelativePath: string;
+  repoRelativePath: string;
+  expectedUpdatedAtMs: number;
+}

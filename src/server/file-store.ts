@@ -1,6 +1,6 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
-import type { CreateNoteRequest, NoteFilePayload, NoteSummary, UpdateNoteRequest } from "../shared/types";
+import type { CreateNoteRequest, MoveNoteRequest, NoteFilePayload, NoteSummary, UpdateNoteRequest } from "../shared/types";
 import {
   assertAllowedNotePath,
   assertNoSymlinkInWorkspacePath,
@@ -85,6 +85,48 @@ export async function createNoteFile(
   return readNoteFile(root, rootRelativePath);
 }
 
+export async function moveNoteFile(rootPath: string, request: MoveNoteRequest): Promise<NoteFilePayload> {
+  const root = resolveWorkspaceRoot(rootPath);
+  const sourceAbsolutePath = resolveWorkspaceFilePath(root, request.rootRelativePath);
+  assertSupportedNoteExtension(request.rootRelativePath);
+  assertAllowedNotePath(request.rootRelativePath);
+  await assertNoSymlinkInWorkspacePath(root, request.rootRelativePath);
+
+  const sourceStat = await stat(sourceAbsolutePath);
+  if (!sourceStat.isFile()) {
+    throw new Error("Requested note path is not a file.");
+  }
+
+  if (!sameTimestamp(sourceStat.mtimeMs, request.expectedUpdatedAtMs)) {
+    throw new NoteWriteConflictError();
+  }
+
+  const pathParts = request.rootRelativePath.split("/").filter(Boolean);
+  const repoName = pathParts[0] ?? "";
+  assertSafeRepoName(repoName);
+  const normalizedRepoRelativePath = request.repoRelativePath.replaceAll("\\", "/");
+  assertSupportedNoteExtension(normalizedRepoRelativePath);
+
+  const repoPath = resolveWorkspaceFilePath(root, repoName);
+  const destinationAbsolutePath = resolveRepoFilePath(repoPath, normalizedRepoRelativePath);
+  assertAllowedNotePath(normalizedRepoRelativePath);
+  const destinationRootRelativePath = toRootRelativePath(root, destinationAbsolutePath);
+  if (destinationRootRelativePath === request.rootRelativePath) {
+    return readNoteFile(root, request.rootRelativePath);
+  }
+
+  await assertNoSymlinkInWorkspacePath(root, destinationRootRelativePath, { allowMissing: true });
+  if (await fileExists(destinationAbsolutePath)) {
+    throw new Error("A note already exists at that path.");
+  }
+
+  await mkdir(dirname(destinationAbsolutePath), { recursive: true });
+  await rename(sourceAbsolutePath, destinationAbsolutePath);
+  invalidateSearchContentCache(root, request.rootRelativePath);
+  invalidateSearchContentCache(root, destinationRootRelativePath);
+  return readNoteFile(root, destinationRootRelativePath);
+}
+
 function noteFromStat(rootRelativePath: string, fileStat: Awaited<ReturnType<typeof stat>>): NoteSummary {
   const pathParts = rootRelativePath.split("/");
   const repoName = pathParts[0] ?? "";
@@ -131,6 +173,19 @@ function resolveRepoFilePath(repoPath: string, repoRelativePath: string) {
 
 function sameTimestamp(actual: number, expected: number) {
   return Number.isFinite(expected) && Math.abs(actual - expected) <= 1;
+}
+
+async function fileExists(path: string) {
+  try {
+    const fileStat = await stat(path);
+    return fileStat.isFile() || fileStat.isDirectory();
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 export class NoteWriteConflictError extends Error {
