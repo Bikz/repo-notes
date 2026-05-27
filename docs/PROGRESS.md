@@ -110,3 +110,8 @@
 - Added client helper coverage for local preview link resolution, external link detection, and outline-anchor line targets.
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-preview-local-link-navigation.png`
+- Added local preview image rendering through a workspace-safe `/api/assets` endpoint. Relative image sources are rewritten after sanitization, resolved against the current note, constrained to the same repo, checked for symlink escapes, and styled as first-class reader media.
+- Added server/client coverage for asset resolution, unsupported image sources, same-repo boundaries, and symlink rejection.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-preview-local-image.png`
+- Local preview image validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright rendered-image check.

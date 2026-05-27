@@ -10,6 +10,7 @@ import {
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
   nextReviewIssueLimit,
+  previewAssetApiPath,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -219,6 +220,17 @@ test("lineTargetForOutlineAnchor maps markdown anchors to outline line targets",
     line: 1,
   });
   expect(lineTargetForOutlineAnchor(outline, "missing", "alpha/docs/brief.md")).toBeNull();
+});
+
+test("previewAssetApiPath builds API URLs for local image sources only", () => {
+  expect(previewAssetApiPath("alpha/docs/README.md", "images/chart one.png")).toBe(
+    "/api/assets?note=alpha%2Fdocs%2FREADME.md&src=images%2Fchart%20one.png",
+  );
+  expect(previewAssetApiPath("alpha/docs/README.md", "https://example.com/chart.png")).toBeNull();
+  expect(previewAssetApiPath("alpha/docs/README.md", "data:image/png;base64,abc")).toBeNull();
+  expect(previewAssetApiPath("alpha/docs/README.md", "/alpha/docs/image.png")).toBeNull();
+  expect(previewAssetApiPath("alpha/docs/README.md", "#diagram")).toBeNull();
+  expect(previewAssetApiPath("alpha/docs/README.md", "images/readme.txt")).toBeNull();
 });
 
 const dayMs = 24 * 60 * 60 * 1000;

@@ -22,6 +22,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Preview Markdown, plain text, and HTML with client-side sanitization.
 - Jump between Markdown sections from an in-file outline.
 - Open indexed local Markdown links directly inside Repo Notes.
+- Render local preview images through the workspace-safe asset endpoint.
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
@@ -79,6 +80,8 @@ Content search runs on demand against the selected repository or all indexed rep
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
 
 Rendered preview links only navigate inside Repo Notes when they resolve to notes already present in the current local index. Missing local links are reported in the app instead of navigating the browser outside the notes surface.
+
+Rendered local images are served through `/api/assets`, which resolves image paths relative to the current note, keeps them inside the same repository, rejects symlinks, and supports common image formats such as PNG, JPEG, GIF, SVG, WebP, and AVIF.
 
 Do not point Repo Notes at directories containing private data you do not want listed in the app.
 

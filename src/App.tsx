@@ -33,6 +33,7 @@ import {
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
   nextReviewIssueLimit,
+  previewAssetApiPath,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -301,11 +302,14 @@ function App() {
     }
 
     if (activeFile.note.kind === "markdown") {
-      return DOMPurify.sanitize(marked.parse(editorValue, { async: false }) as string);
+      return rewriteRenderedAssetSources(
+        DOMPurify.sanitize(marked.parse(editorValue, { async: false }) as string),
+        activeFile.note.rootRelativePath,
+      );
     }
 
     if (activeFile.note.kind === "html") {
-      return DOMPurify.sanitize(editorValue);
+      return rewriteRenderedAssetSources(DOMPurify.sanitize(editorValue), activeFile.note.rootRelativePath);
     }
 
     return DOMPurify.sanitize(`<pre>${escapeHtml(editorValue)}</pre>`);
@@ -1440,6 +1444,25 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function rewriteRenderedAssetSources(html: string, noteRootRelativePath: string) {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+
+  for (const image of template.content.querySelectorAll("img[src]")) {
+    const source = image.getAttribute("src");
+    if (!source) {
+      continue;
+    }
+
+    const assetPath = previewAssetApiPath(noteRootRelativePath, source);
+    if (assetPath) {
+      image.setAttribute("src", assetPath);
+    }
+  }
+
+  return template.innerHTML;
 }
 
 function formatBytes(bytes: number) {

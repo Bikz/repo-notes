@@ -1252,6 +1252,16 @@ button {
   color: #d9b650;
 }
 
+.rendered-note img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 18px 0;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  background: #151515;
+}
+
 .rendered-note pre {
   overflow: auto;
   padding: 14px;

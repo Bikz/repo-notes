@@ -1,5 +1,6 @@
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { createNoteFile, NoteWriteConflictError, readNoteFile, writeNoteFile } from "./file-store";
+import { resolvePreviewAsset } from "./assets";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { getWorkspaceIndex } from "./index-cache";
 import { reviewWorkspaceDocs } from "./review";
@@ -97,6 +98,25 @@ async function handleApiRequest(request: Request, url: URL) {
     });
 
     return jsonResponse(await searchWorkspaceDocs(config.rootPath, index, { query, repoName }));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/assets") {
+    const noteRootRelativePath = url.searchParams.get("note");
+    const source = url.searchParams.get("src");
+    if (!noteRootRelativePath || !source) {
+      throw new HttpError("note and src are required.", 400);
+    }
+
+    const config = await loadWorkspaceConfig();
+    const asset = await resolvePreviewAsset(config.rootPath, noteRootRelativePath, source);
+    return new Response(Bun.file(asset.absolutePath), {
+      headers: {
+        ...corsHeaders(),
+        "cache-control": "no-store",
+        "content-length": String(asset.byteSize),
+        "content-type": asset.contentType,
+      },
+    });
   }
 
   if (request.method === "GET" && url.pathname === "/api/files") {

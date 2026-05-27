@@ -218,6 +218,20 @@ export function lineTargetForOutlineAnchor(
   };
 }
 
+export function previewAssetApiPath(noteRootRelativePath: string, source: string) {
+  const trimmedSource = source.trim();
+  if (!trimmedSource || isExternalPreviewHref(trimmedSource) || trimmedSource.startsWith("/") || trimmedSource.startsWith("#")) {
+    return null;
+  }
+
+  const sourcePath = trimmedSource.split("#", 1)[0]?.split("?", 1)[0] ?? "";
+  if (!isSupportedPreviewImageSource(sourcePath)) {
+    return null;
+  }
+
+  return `/api/assets?note=${encodeURIComponent(noteRootRelativePath)}&src=${encodeURIComponent(trimmedSource)}`;
+}
+
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {
   const buckets: NoteGroup[] = [
     { title: "Today", notes: [] },
@@ -341,6 +355,10 @@ function decodeUriComponentSafe(value: string) {
   } catch {
     return value;
   }
+}
+
+function isSupportedPreviewImageSource(sourcePath: string) {
+  return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(sourcePath);
 }
 
 const dayMs = 24 * 60 * 60 * 1000;
