@@ -70,3 +70,10 @@
   - `output/playwright/repo-notes-doc-review-panel.png`
   - `output/playwright/repo-notes-doc-review-mobile-list.png`
 - Docs review validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
+- Wired the topbar shell controls so Repo Notes has fewer inert affordances: the source/projects rail can collapse on desktop, and the More menu now exposes review, copy-note-path, refresh, and clear-review actions.
+- Hardened copy-note-path with a local clipboard fallback so the action still works when the browser gates `navigator.clipboard`.
+- Browser proof artifacts for the shell controls pass:
+  - `output/playwright/repo-notes-shell-actions-menu.png`
+  - `output/playwright/repo-notes-shell-sources-collapsed.png`
+  - `output/playwright/repo-notes-shell-mobile-browse.png`
+- Shell controls validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.

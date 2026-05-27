@@ -99,6 +99,10 @@
   min-width: 0;
 }
 
+.topbar-actions {
+  position: relative;
+}
+
 .mobile-nav {
   display: none;
 }
@@ -125,6 +129,14 @@
   min-height: 0;
   display: grid;
   grid-template-columns: 250px minmax(340px, 430px) minmax(0, 1fr);
+}
+
+.notes-window.sources-hidden .workspace-grid {
+  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+}
+
+.notes-window.sources-hidden .sidebar {
+  display: none;
 }
 
 .sidebar,
@@ -442,6 +454,61 @@ button {
 .round-button:hover:not(:disabled),
 .icon-button:hover:not(:disabled) {
   background: #2b2b2e;
+}
+
+.round-button.is-active {
+  color: #f4f4f4;
+  background: #353538;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.topbar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 224px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 14px;
+  padding: 6px;
+  background: #1b1b1d;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.48);
+}
+
+.topbar-menu button {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 10px;
+  color: #dedee1;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 730;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topbar-menu button:hover:not(:disabled) {
+  background: #2a2a2d;
+}
+
+.topbar-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.topbar-menu button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .subtle-button {
@@ -1134,6 +1201,10 @@ button {
   .workspace-grid {
     grid-template-columns: 230px minmax(300px, 380px) minmax(0, 1fr);
   }
+
+  .notes-window.sources-hidden .workspace-grid {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 860px) {
@@ -1211,6 +1282,18 @@ button {
   .workspace-grid {
     grid-template-columns: 1fr;
     overflow: visible;
+  }
+
+  .notes-window.sources-hidden .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-window.mobile-pane-browse.sources-hidden .sidebar {
+    display: flex;
+  }
+
+  .notes-window.mobile-pane-read.sources-hidden .sidebar {
+    display: none;
   }
 
   .notes-window.mobile-pane-browse .reader-panel {

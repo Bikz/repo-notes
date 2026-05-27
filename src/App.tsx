@@ -2,6 +2,7 @@ import DOMPurify from "dompurify";
 import {
   ArrowLeft,
   Check,
+  Copy,
   FilePlus2,
   Folder,
   ListFilter,
@@ -65,6 +66,8 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [mobilePane, setMobilePane] = useState<MobilePane>("browse");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [areSourcesVisible, setAreSourcesVisible] = useState(true);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
@@ -377,6 +380,50 @@ function App() {
     }
   }
 
+  async function writeClipboard(value: string) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return;
+      } catch {
+        // Fall back to the old selection API below for browsers that gate clipboard writes.
+      }
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const didCopy = document.execCommand("copy");
+    textarea.remove();
+
+    if (!didCopy) {
+      throw new Error("Clipboard copy failed.");
+    }
+  }
+
+  async function copySelectedPath() {
+    if (!selectedNote) {
+      return;
+    }
+
+    setIsMoreOpen(false);
+    setError("");
+    setNotice("");
+
+    try {
+      await writeClipboard(selectedNote.rootRelativePath);
+      setNotice("Copied note path.");
+    } catch {
+      setError("Could not copy the note path.");
+    }
+  }
+
   function openNote(note: NoteFilePayload["note"], nextRepoFilter?: string) {
     if (note.rootRelativePath === selectedPath) {
       setMobilePane("read");
@@ -419,6 +466,13 @@ function App() {
     return !isDirty || window.confirm("Discard unsaved changes?");
   }
 
+  function clearDocReview() {
+    setDocReview(null);
+    setReviewError("");
+    setIsMoreOpen(false);
+    setNotice("Review cleared.");
+  }
+
   function openReviewIssue(issue: DocReviewIssue) {
     const issueNote = notes.find((note) => note.rootRelativePath === issue.rootRelativePath);
     if (!issueNote) {
@@ -431,7 +485,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className={`notes-window mobile-pane-${mobilePane}`}>
+      <section className={`notes-window mobile-pane-${mobilePane} ${areSourcesVisible ? "" : "sources-hidden"}`}>
         <header className="topbar">
           <div className="window-controls" aria-hidden="true">
             <span className="traffic traffic-close" />
@@ -443,13 +497,25 @@ function App() {
             <h1>Repo Notes</h1>
           </div>
           <div className="topbar-actions">
-            <button className="round-button" type="button" aria-label="Toggle sources">
+            <button
+              className={`round-button ${areSourcesVisible ? "" : "is-active"}`}
+              type="button"
+              onClick={() => {
+                setIsMoreOpen(false);
+                setAreSourcesVisible((current) => !current);
+              }}
+              aria-label={areSourcesVisible ? "Hide projects" : "Show projects"}
+              aria-pressed={!areSourcesVisible}
+            >
               <PanelLeft size={18} />
             </button>
             <button
               className="round-button"
               type="button"
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => {
+                setIsMoreOpen(false);
+                setIsCreateOpen(true);
+              }}
               disabled={repos.length === 0}
               aria-label="New note"
             >
@@ -458,15 +524,71 @@ function App() {
             <button
               className="round-button"
               type="button"
-              onClick={() => void refreshIndex({ force: true })}
+              onClick={() => {
+                setIsMoreOpen(false);
+                void refreshIndex({ force: true });
+              }}
               disabled={isIndexing}
               aria-label="Refresh"
             >
               {isIndexing ? <Loader2 className="spin" size={18} /> : <RefreshCcw size={18} />}
             </button>
-            <button className="round-button" type="button" aria-label="More">
+            <button
+              className={`round-button ${isMoreOpen ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setIsMoreOpen((current) => !current)}
+              aria-expanded={isMoreOpen}
+              aria-haspopup="menu"
+              aria-label="More actions"
+            >
               <MoreHorizontal size={18} />
             </button>
+            {isMoreOpen && (
+              <div className="topbar-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMoreOpen(false);
+                    void runDocReview();
+                  }}
+                  disabled={isBooting || isIndexing || isReviewing || filteredNotes.length === 0}
+                >
+                  <ListFilter size={15} />
+                  <span>Review current scope</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void copySelectedPath()}
+                  disabled={!selectedNote}
+                >
+                  <Copy size={15} />
+                  <span>Copy note path</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMoreOpen(false);
+                    void refreshIndex({ force: true });
+                  }}
+                  disabled={isIndexing}
+                >
+                  {isIndexing ? <Loader2 className="spin" size={15} /> : <RefreshCcw size={15} />}
+                  <span>Refresh index</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={clearDocReview}
+                  disabled={!docReview && !reviewError}
+                >
+                  <X size={15} />
+                  <span>Clear review</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
