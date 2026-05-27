@@ -9,6 +9,7 @@ import type {
 } from "../shared/types";
 
 export type NoteSortMode = "path" | "updated";
+export type SessionViewMode = "preview" | "edit" | "split";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
 export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel";
@@ -54,6 +55,15 @@ export interface NoteOutlineItem {
 export interface NoteHistoryState {
   entries: string[];
   index: number;
+}
+
+export interface WorkspaceSessionState {
+  rootPath: string;
+  repoFilter: string;
+  selectedPath: string;
+  noteSort: NoteSortMode;
+  viewMode: SessionViewMode;
+  areSourcesVisible: boolean;
 }
 
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
@@ -187,6 +197,38 @@ export function isSaveConflictError(error: unknown) {
   }
 
   return error.message.toLowerCase().includes("changed on disk");
+}
+
+export function restoreWorkspaceSession(
+  session: unknown,
+  rootPath: string,
+  repos: RepoSummary[],
+  notes: NoteSummary[],
+): Omit<WorkspaceSessionState, "rootPath"> | null {
+  if (!isWorkspaceSessionLike(session) || session.rootPath !== rootPath) {
+    return null;
+  }
+
+  let repoFilter = "all";
+  if (
+    typeof session.repoFilter === "string" &&
+    (session.repoFilter === "all" || repos.some((repo) => repo.name === session.repoFilter))
+  ) {
+    repoFilter = session.repoFilter;
+  }
+  const selectedNote = notes.find((note) => note.rootRelativePath === session.selectedPath);
+  const selectedPath = selectedNote?.rootRelativePath ?? "";
+  if (selectedNote && repoFilter !== "all" && selectedNote.repoName !== repoFilter) {
+    repoFilter = selectedNote.repoName;
+  }
+
+  return {
+    repoFilter,
+    selectedPath,
+    noteSort: isNoteSortMode(session.noteSort) ? session.noteSort : "path",
+    viewMode: isSessionViewMode(session.viewMode) ? session.viewMode : "preview",
+    areSourcesVisible: typeof session.areSourcesVisible === "boolean" ? session.areSourcesVisible : true,
+  };
 }
 
 export function filterReviewIssues(
@@ -467,6 +509,18 @@ function decodeUriComponentSafe(value: string) {
 
 function isSupportedPreviewImageSource(sourcePath: string) {
   return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(sourcePath);
+}
+
+function isWorkspaceSessionLike(value: unknown): value is Partial<WorkspaceSessionState> {
+  return value !== null && typeof value === "object";
+}
+
+function isNoteSortMode(value: unknown): value is NoteSortMode {
+  return value === "path" || value === "updated";
+}
+
+function isSessionViewMode(value: unknown): value is SessionViewMode {
+  return value === "preview" || value === "edit" || value === "split";
 }
 
 const dayMs = 24 * 60 * 60 * 1000;

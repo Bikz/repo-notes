@@ -17,6 +17,7 @@ import {
   noteHistoryTarget,
   previewAssetApiPath,
   pushNoteHistory,
+  restoreWorkspaceSession,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -159,6 +160,96 @@ test("isSaveConflictError detects stale-save errors from status or message", () 
   expect(isSaveConflictError(new Error("This note changed on disk. Refresh the note before saving again."))).toBe(true);
   expect(isSaveConflictError(errorWithStatus("Missing", 404))).toBe(false);
   expect(isSaveConflictError("changed on disk")).toBe(false);
+});
+
+test("restoreWorkspaceSession restores valid same-root note context", () => {
+  const repos: RepoSummary[] = [
+    { name: "alpha", rootRelativePath: "alpha", isGitRepo: true, noteCount: 2 },
+    { name: "beta", rootRelativePath: "beta", isGitRepo: true, noteCount: 1 },
+  ];
+
+  expect(
+    restoreWorkspaceSession(
+      {
+        rootPath: "/workspace",
+        repoFilter: "alpha",
+        selectedPath: "alpha/notes/release-plan.md",
+        noteSort: "updated",
+        viewMode: "split",
+        areSourcesVisible: false,
+      },
+      "/workspace",
+      repos,
+      notes,
+    ),
+  ).toEqual({
+    repoFilter: "alpha",
+    selectedPath: "alpha/notes/release-plan.md",
+    noteSort: "updated",
+    viewMode: "split",
+    areSourcesVisible: false,
+  });
+});
+
+test("restoreWorkspaceSession rejects stale root and sanitizes missing repo or note values", () => {
+  const repos: RepoSummary[] = [
+    { name: "alpha", rootRelativePath: "alpha", isGitRepo: true, noteCount: 2 },
+    { name: "beta", rootRelativePath: "beta", isGitRepo: true, noteCount: 1 },
+  ];
+
+  expect(
+    restoreWorkspaceSession({ rootPath: "/other", selectedPath: "alpha/docs/README.md" }, "/workspace", repos, notes),
+  ).toBeNull();
+  expect(
+    restoreWorkspaceSession(
+      {
+        rootPath: "/workspace",
+        repoFilter: "missing",
+        selectedPath: "missing/docs/ghost.md",
+        noteSort: "unknown",
+        viewMode: "bad",
+        areSourcesVisible: "nope",
+      },
+      "/workspace",
+      repos,
+      notes,
+    ),
+  ).toEqual({
+    repoFilter: "all",
+    selectedPath: "",
+    noteSort: "path",
+    viewMode: "preview",
+    areSourcesVisible: true,
+  });
+});
+
+test("restoreWorkspaceSession keeps restored notes visible when stored repo metadata drifts", () => {
+  const repos: RepoSummary[] = [
+    { name: "alpha", rootRelativePath: "alpha", isGitRepo: true, noteCount: 2 },
+    { name: "beta", rootRelativePath: "beta", isGitRepo: true, noteCount: 1 },
+  ];
+
+  expect(
+    restoreWorkspaceSession(
+      {
+        rootPath: "/workspace",
+        repoFilter: "alpha",
+        selectedPath: "beta/docs/ops.txt",
+        noteSort: "path",
+        viewMode: "preview",
+        areSourcesVisible: true,
+      },
+      "/workspace",
+      repos,
+      notes,
+    ),
+  ).toEqual({
+    repoFilter: "beta",
+    selectedPath: "beta/docs/ops.txt",
+    noteSort: "path",
+    viewMode: "preview",
+    areSourcesVisible: true,
+  });
 });
 
 test("filterReviewIssues narrows issues by severity and category", () => {

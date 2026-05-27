@@ -30,6 +30,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Use editor-grade keyboard shortcuts for save, search, new note, and dismissing transient panels.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
+- Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
 - Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.
 - Keep all file history in the repositories that already own those files.
 
@@ -82,6 +83,8 @@ Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache
 Content search runs on demand against the selected repository or all indexed repositories. Search responses can include a bounded line-level snippet for matching local content, but snippets are not written to the metadata cache.
 
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
+
+The browser stores a small root-scoped session payload in local storage so Repo Notes can reopen to the last valid browsing context. That payload is limited to the configured root path, selected repo, selected note path, note sort, view mode, and whether the projects pane is visible; it does not include note contents, search snippets, review results, or editor drafts.
 
 Rendered preview links only navigate inside Repo Notes when they resolve to notes already present in the current local index. Missing local links are reported in the app instead of navigating the browser outside the notes surface.
 

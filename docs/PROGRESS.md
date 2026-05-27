@@ -130,3 +130,8 @@
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-save-conflict-actions.png`
 - Conflict recovery validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright stale-save recovery check.
+- Added metadata-only workspace session restore so Repo Notes reopens to the last valid repo, note path, sort mode, view mode, and projects-pane visibility for the same configured root.
+- Restore rejects stale roots, sanitizes invalid localStorage values, keeps restored notes visible if stored repo metadata drifts, and clears deleted-note selections without preserving stale reader content.
+- Browser proof used a disposable workspace:
+  - `output/playwright/repo-notes-session-restore.png`
+- Session restore validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, Playwright reload proof, stale-note deletion proof, and a fresh Playwright console-error check.

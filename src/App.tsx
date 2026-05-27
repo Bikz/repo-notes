@@ -23,7 +23,14 @@ import type { FormEvent } from "react";
 import type { MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { NoteHistoryState, NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
+import type {
+  NoteHistoryState,
+  NoteLineTarget,
+  NoteOutlineItem,
+  NoteSortMode,
+  SessionViewMode,
+  WorkspaceSessionState,
+} from "./client/note-utils";
 import {
   appShortcutForKey,
   extractMarkdownOutline,
@@ -42,6 +49,7 @@ import {
   noteHistoryTarget,
   previewAssetApiPath,
   pushNoteHistory,
+  restoreWorkspaceSession,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -64,7 +72,7 @@ import type {
   WorkspaceIndex,
 } from "./shared/types";
 
-type ViewMode = "preview" | "edit" | "split";
+type ViewMode = SessionViewMode;
 type MobilePane = "browse" | "read";
 
 interface CreateFormState {
@@ -91,6 +99,7 @@ const emptyCreateForm: CreateFormState = {
 };
 const initialVisibleNoteCount = 300;
 const contentSearchMinLength = 2;
+const workspaceSessionStorageKey = "repo-notes:workspace-session";
 const reviewSeverityOptions: DocReviewSeverity[] = ["high", "medium", "low"];
 const reviewCategoryOptions: DocReviewCategory[] = [
   "broken-link",
@@ -141,6 +150,7 @@ function App() {
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pendingPreviewAnchorRef = useRef<PreviewAnchorTarget | null>(null);
+  const selectedPathRef = useRef("");
 
   const selectedNote = activeFile?.note ?? null;
   const isDirty = activeFile !== null && editorValue !== activeFile.content;
@@ -151,6 +161,10 @@ function App() {
   }, [notes]);
   const previousHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, -1) ?? "") ?? null;
   const nextHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, 1) ?? "") ?? null;
+
+  useEffect(() => {
+    selectedPathRef.current = selectedPath;
+  }, [selectedPath]);
 
   function openPendingPreviewAnchor(file: NoteFilePayload) {
     const pendingAnchor = pendingPreviewAnchorRef.current;
@@ -204,6 +218,25 @@ function App() {
             ...current,
             repoName: resolveCreateRepoName(current.repoName, nextIndex.repos),
           }));
+          const restoredSession = restoreWorkspaceSession(
+            readWorkspaceSession(),
+            nextConfig.rootPath,
+            nextIndex.repos,
+            nextIndex.notes,
+          );
+          if (restoredSession) {
+            selectedPathRef.current = restoredSession.selectedPath;
+            setRepoFilter(restoredSession.repoFilter);
+            setSelectedPath(restoredSession.selectedPath);
+            setNoteSort(restoredSession.noteSort);
+            setViewMode(restoredSession.viewMode);
+            setAreSourcesVisible(restoredSession.areSourcesVisible);
+            setVisibleNoteCount(initialVisibleNoteCount);
+            if (restoredSession.selectedPath) {
+              setNoteHistory(pushNoteHistory({ entries: [], index: -1 }, restoredSession.selectedPath));
+              setMobilePane("read");
+            }
+          }
           if (nextIndex.cacheStatus === "cached") {
             void hydrateFreshIndex();
           }
@@ -234,6 +267,12 @@ function App() {
           ...current,
           repoName: resolveCreateRepoName(current.repoName, freshIndex.repos),
         }));
+        if (
+          selectedPathRef.current &&
+          !freshIndex.notes.some((note) => note.rootRelativePath === selectedPathRef.current)
+        ) {
+          clearActiveNote();
+        }
       } catch (nextError) {
         if (!isCancelled) {
           setError(messageForError(nextError));
@@ -245,6 +284,31 @@ function App() {
       isCancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (isBooting || !config?.rootExists || !workspaceIndex) {
+      return;
+    }
+
+    writeWorkspaceSession({
+      rootPath: config.rootPath,
+      repoFilter,
+      selectedPath,
+      noteSort,
+      viewMode,
+      areSourcesVisible,
+    });
+  }, [
+    areSourcesVisible,
+    config?.rootExists,
+    config?.rootPath,
+    isBooting,
+    noteSort,
+    repoFilter,
+    selectedPath,
+    viewMode,
+    workspaceIndex,
+  ]);
 
   useEffect(() => {
     if (!selectedPath) {
@@ -500,11 +564,7 @@ function App() {
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
-      setSelectedPath("");
-      setNoteHistory({ entries: [], index: -1 });
-      setSaveConflictPath("");
-      setActiveFile(null);
-      setEditorValue("");
+      clearActiveNote();
       setNotice(nextConfig.rootExists ? "Workspace root saved." : "Root saved, but the path does not exist.");
 
       if (nextConfig.rootExists) {
@@ -538,12 +598,9 @@ function App() {
         setNotice(`Refreshed ${nextIndex.notes.length} notes across ${nextIndex.repos.length} repos.`);
       }
 
-      if (selectedPath && !nextIndex.notes.some((note) => note.rootRelativePath === selectedPath)) {
-        setSelectedPath("");
-        setNoteHistory({ entries: [], index: -1 });
-        setSaveConflictPath("");
-        setActiveFile(null);
-        setEditorValue("");
+      const currentSelectedPath = selectedPathRef.current;
+      if (currentSelectedPath && !nextIndex.notes.some((note) => note.rootRelativePath === currentSelectedPath)) {
+        clearActiveNote();
       }
     } catch (nextError) {
       setError(messageForError(nextError));
@@ -629,6 +686,7 @@ function App() {
         method: "POST",
         body: JSON.stringify(body),
       });
+      selectedPathRef.current = createdFile.note.rootRelativePath;
       setActiveFile(createdFile);
       setEditorValue(createdFile.content);
       setSelectedPath(createdFile.note.rootRelativePath);
@@ -737,6 +795,7 @@ function App() {
     }
 
     if (!isSameNote) {
+      selectedPathRef.current = note.rootRelativePath;
       setSelectedPath(note.rootRelativePath);
       setSaveConflictPath("");
       if (!options.skipHistory) {
@@ -808,6 +867,18 @@ function App() {
 
   function confirmDiscardDraft() {
     return !isDirty || window.confirm("Discard unsaved changes?");
+  }
+
+  function clearActiveNote() {
+    selectedPathRef.current = "";
+    pendingPreviewAnchorRef.current = null;
+    setSelectedPath("");
+    setNoteHistory({ entries: [], index: -1 });
+    setSaveConflictPath("");
+    setActiveFile(null);
+    setEditorValue("");
+    setIsLoadingFile(false);
+    setError("");
   }
 
   function clearDocReview() {
@@ -1639,6 +1710,22 @@ function requestWorkspaceIndex(options: { backgroundRefresh?: boolean; force?: b
 
 function messageForError(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
+}
+
+function readWorkspaceSession() {
+  try {
+    return JSON.parse(window.localStorage.getItem(workspaceSessionStorageKey) ?? "null") as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function writeWorkspaceSession(session: WorkspaceSessionState) {
+  try {
+    window.localStorage.setItem(workspaceSessionStorageKey, JSON.stringify(session));
+  } catch {
+    // Browsers can deny storage; session restore is a convenience, not required state.
+  }
 }
 
 function escapeHtml(value: string) {
