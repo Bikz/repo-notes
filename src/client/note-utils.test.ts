@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
-import type { DocReviewIssue, DocSearchResult, NoteSummary, RepoSummary } from "../shared/types";
+import type { DocReviewIssue, DocSearchResult, GitChangesPayload, NoteSummary, RepoSummary } from "../shared/types";
 import {
   appShortcutForKey,
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
+  gitChangeStatusLabel,
+  gitChangesLimitMessage,
   groupNotesByLocation,
   groupNotesByRecency,
   isCreateDraftDirty,
@@ -126,6 +128,19 @@ test("searchResultLimitMessage explains capped search results without implying p
   );
   expect(searchResultLimitMessage(searchPayload(40, 10, "alpha"))).toBe(
     "Showing first 10 of 40 matches. Narrow the search to inspect more.",
+  );
+});
+
+test("git change helpers label status and capped change results", () => {
+  expect(gitChangeStatusLabel("modified")).toBe("Modified");
+  expect(gitChangeStatusLabel("untracked")).toBe("Untracked");
+  expect(gitChangeStatusLabel("typechange")).toBe("Type changed");
+  expect(gitChangesLimitMessage(gitChangesPayload(8, 8))).toBe("");
+  expect(gitChangesLimitMessage(gitChangesPayload(300, 250))).toBe(
+    "Showing first 250 of 300 changed docs. Select a repo to inspect fewer changes.",
+  );
+  expect(gitChangesLimitMessage(gitChangesPayload(40, 25, "alpha"))).toBe(
+    "Showing first 25 of 40 changed docs. Narrow the repo's changes outside Repo Notes to inspect fewer files.",
   );
 });
 
@@ -428,6 +443,22 @@ function searchPayload(resultCount: number, returnedResultCount: number, repoNam
     resultCount,
     returnedResultCount,
     results: [],
+  };
+}
+
+function gitChangesPayload(changeCount: number, returnedChangeCount: number, repoName?: string): GitChangesPayload {
+  return {
+    generatedAtMs: 1,
+    scope: {
+      repoName,
+      label: repoName ?? "All repos",
+    },
+    repoCount: repoName ? 1 : 3,
+    reposScanned: repoName ? 1 : 2,
+    changeCount,
+    returnedChangeCount,
+    isTruncated: returnedChangeCount < changeCount,
+    changes: [],
   };
 }
 

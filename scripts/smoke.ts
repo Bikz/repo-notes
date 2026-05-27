@@ -6,6 +6,7 @@ import type {
   DeleteNoteRequest,
   DocReviewPayload,
   DocSearchPayload,
+  GitChangesPayload,
   MoveNoteRequest,
   NoteFilePayload,
   WorkspaceConfig,
@@ -132,7 +133,22 @@ try {
     "deleted note should be removed from the index",
   );
 
-  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, created, and deleted notes in a disposable workspace.");
+  const gitChanges = await requestJson<GitChangesPayload>(`${baseUrl}/api/git/changes?repo=alpha&force=1`);
+  assert(gitChanges.reposScanned === 1, "git changes should scan the selected git repo");
+  assert(
+    gitChanges.changes.some(
+      (change) => change.rootRelativePath === "alpha/docs/README.md" && change.status === "deleted",
+    ),
+    "git changes should report the moved source path as deleted",
+  );
+  assert(
+    gitChanges.changes.some(
+      (change) => change.rootRelativePath === "alpha/docs/renamed-smoke-note.md" && change.status === "untracked",
+    ),
+    "git changes should report the moved destination path as untracked",
+  );
+
+  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, created, deleted, and checked git-changed notes in a disposable workspace.");
 } finally {
   server.kill();
   await server.exited.catch(() => undefined);
@@ -140,7 +156,6 @@ try {
 }
 
 async function seedWorkspace(path: string) {
-  await mkdir(join(path, "alpha", ".git"), { recursive: true });
   await mkdir(join(path, "alpha", "docs"), { recursive: true });
   await mkdir(join(path, "alpha", "notes"), { recursive: true });
   await mkdir(join(path, "alpha", "node_modules", "pkg"), { recursive: true });
@@ -152,6 +167,12 @@ async function seedWorkspace(path: string) {
   await writeFile(join(path, "alpha", "docs", "page.html"), "<h1>Smoke page</h1>", "utf8");
   await writeFile(join(path, "alpha", "notes", "todo.txt"), "Smoke todo\n", "utf8");
   await writeFile(join(path, "alpha", "node_modules", "pkg", "ignored.md"), "# Ignored\n", "utf8");
+  const repoPath = join(path, "alpha");
+  await runGit(repoPath, ["init"]);
+  await runGit(repoPath, ["config", "user.email", "repo-notes@example.com"]);
+  await runGit(repoPath, ["config", "user.name", "Repo Notes"]);
+  await runGit(repoPath, ["add", "."]);
+  await runGit(repoPath, ["commit", "-m", "Initial smoke docs"]);
 }
 
 async function reservePort() {
@@ -224,4 +245,21 @@ async function assertRejects(promise: Promise<unknown>, expectedMessage: string)
   }
 
   throw new Error(`Expected promise to reject with ${expectedMessage}`);
+}
+
+async function runGit(cwd: string, args: string[]) {
+  const proc = Bun.spawn(["git", ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+
+  if (exitCode !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${stdout}${stderr}`);
+  }
 }

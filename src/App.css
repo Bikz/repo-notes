@@ -878,6 +878,53 @@ button {
   background: #202022;
 }
 
+.review-issue:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.change-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.change-status,
+.change-stage {
+  align-self: start;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 820;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.change-status {
+  color: #f4d35d;
+  background: rgba(244, 211, 93, 0.13);
+}
+
+.change-row.is-deleted .change-status {
+  color: #ffb4aa;
+  background: rgba(255, 93, 78, 0.13);
+}
+
+.change-row.is-untracked .change-status,
+.change-row.is-added .change-status {
+  color: #bce7c7;
+  background: rgba(82, 180, 114, 0.15);
+}
+
+.change-row.is-renamed .change-status,
+.change-row.is-copied .change-status {
+  color: #b7d2ff;
+  background: rgba(91, 141, 239, 0.16);
+}
+
+.change-stage {
+  color: #96969d;
+  background: #222225;
+}
+
 .severity-dot {
   width: 8px;
   aspect-ratio: 1;

@@ -8,6 +8,7 @@ import {
   FilePenLine,
   FilePlus2,
   Folder,
+  GitCompare,
   ListFilter,
   ListTree,
   Loader2,
@@ -38,6 +39,8 @@ import {
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
+  gitChangeStatusLabel,
+  gitChangesLimitMessage,
   groupNotesByLocation,
   groupNotesByRecency,
   isCreateDraftDirty,
@@ -70,6 +73,8 @@ import type {
   DocReviewSeverity,
   DeleteNotePayload,
   DeleteNoteRequest,
+  GitChangedNote,
+  GitChangesPayload,
   MoveNoteRequest,
   NoteFilePayload,
   UpdateNoteRequest,
@@ -144,6 +149,7 @@ function App() {
   const [moveForm, setMoveForm] = useState<MoveFormState>(emptyMoveForm);
   const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
+  const [gitChanges, setGitChanges] = useState<GitChangesPayload | null>(null);
   const [reviewSeverityFilter, setReviewSeverityFilter] = useState<ReviewSeverityFilter>("all");
   const [reviewCategoryFilter, setReviewCategoryFilter] = useState<ReviewCategoryFilter>("all");
   const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
@@ -158,8 +164,10 @@ function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isLoadingGitChanges, setIsLoadingGitChanges] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [gitChangesError, setGitChangesError] = useState("");
   const [saveConflictPath, setSaveConflictPath] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -394,6 +402,7 @@ function App() {
     return filteredReviewIssues.slice(0, reviewVisibleIssueCount);
   }, [filteredReviewIssues, reviewVisibleIssueCount]);
   const canShowMoreReviewIssues = visibleReviewIssues.length < filteredReviewIssues.length;
+  const cappedGitChangesMessage = gitChanges ? gitChangesLimitMessage(gitChanges) : "";
   const listTitle = repoFilter === "all" ? "All notes" : repoFilter;
 
   const renderedHtml = useMemo(() => {
@@ -581,8 +590,10 @@ function App() {
       setWorkspaceIndex(null);
       setDocSearch(null);
       setDocReview(null);
+      setGitChanges(null);
       setSearchError("");
       setReviewError("");
+      setGitChangesError("");
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -597,7 +608,7 @@ function App() {
     }
   }
 
-  async function refreshIndex(options: { force?: boolean; quiet?: boolean } = {}) {
+  async function refreshIndex(options: { force?: boolean; quiet?: boolean; preserveGitChanges?: boolean } = {}) {
     setIsIndexing(true);
     setError("");
 
@@ -606,6 +617,10 @@ function App() {
       setWorkspaceIndex(nextIndex);
       setDocSearch(null);
       setDocReview(null);
+      if (!options.preserveGitChanges) {
+        setGitChanges(null);
+        setGitChangesError("");
+      }
       setSearchError("");
       setReviewError("");
       setReviewSeverityFilter("all");
@@ -761,8 +776,10 @@ function App() {
       setRepoFilter(movedFile.note.repoName);
       setDocSearch(null);
       setDocReview(null);
+      setGitChanges(null);
       setSearchError("");
       setReviewError("");
+      setGitChangesError("");
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -818,8 +835,10 @@ function App() {
       clearActiveNote();
       setDocSearch(null);
       setDocReview(null);
+      setGitChanges(null);
       setSearchError("");
       setReviewError("");
+      setGitChangesError("");
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -860,6 +879,33 @@ function App() {
       setReviewError(messageForError(nextError));
     } finally {
       setIsReviewing(false);
+    }
+  }
+
+  async function runGitChanges() {
+    setIsMoreOpen(false);
+    setIsLoadingGitChanges(true);
+    setGitChangesError("");
+    setNotice("");
+
+    const params = new URLSearchParams({ force: "1" });
+    if (repoFilter !== "all") {
+      params.set("repo", repoFilter);
+    }
+
+    try {
+      await refreshIndex({ force: true, quiet: true, preserveGitChanges: true });
+      const changes = await requestJson<GitChangesPayload>(`/api/git/changes?${params.toString()}`);
+      setGitChanges(changes);
+      setNotice(
+        changes.changeCount === 0
+          ? `No changed docs in ${changes.scope.label}.`
+          : `Found ${changes.changeCount} changed ${changes.changeCount === 1 ? "doc" : "docs"} in ${changes.scope.label}.`,
+      );
+    } catch (nextError) {
+      setGitChangesError(messageForError(nextError));
+    } finally {
+      setIsLoadingGitChanges(false);
     }
   }
 
@@ -977,8 +1023,10 @@ function App() {
     setRepoFilter(repoName);
     setDocSearch(null);
     setDocReview(null);
+    setGitChanges(null);
     setSearchError("");
     setReviewError("");
+    setGitChangesError("");
     setReviewSeverityFilter("all");
     setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -989,8 +1037,10 @@ function App() {
     setRepoFilter("all");
     setDocSearch(null);
     setDocReview(null);
+    setGitChanges(null);
     setSearchError("");
     setReviewError("");
+    setGitChangesError("");
     setReviewSeverityFilter("all");
     setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -1072,6 +1122,25 @@ function App() {
 
     setIsMoveOpen(false);
     return true;
+  }
+
+  function openGitChange(change: GitChangedNote) {
+    if (change.status === "deleted") {
+      setError("That changed doc was deleted on disk. Use Git to inspect or restore it.");
+      return;
+    }
+
+    const changedNote = noteByRootRelativePath.get(change.rootRelativePath);
+    if (!changedNote) {
+      setError("That changed doc is not in the current index. Refresh changed docs and try again.");
+      return;
+    }
+
+    if (!openNote(changedNote, { repoName: changedNote.repoName })) {
+      return;
+    }
+
+    setNotice(`Opened changed doc ${changedNote.title}.`);
   }
 
   function openReviewIssue(issue: DocReviewIssue) {
@@ -1251,6 +1320,15 @@ function App() {
                 <button
                   type="button"
                   role="menuitem"
+                  onClick={() => void runGitChanges()}
+                  disabled={isBooting || isIndexing || isLoadingGitChanges || repos.length === 0}
+                >
+                  {isLoadingGitChanges ? <Loader2 className="spin" size={15} /> : <GitCompare size={15} />}
+                  <span>Show changed docs</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => void copySelectedPath()}
                   disabled={!selectedNote}
                 >
@@ -1296,6 +1374,20 @@ function App() {
                 >
                   <X size={15} />
                   <span>Clear review</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setGitChanges(null);
+                    setGitChangesError("");
+                    setIsMoreOpen(false);
+                    setNotice("Changed docs cleared.");
+                  }}
+                  disabled={!gitChanges && !gitChangesError}
+                >
+                  <X size={15} />
+                  <span>Clear changes</span>
                 </button>
               </div>
             )}
@@ -1448,6 +1540,15 @@ function App() {
                   {isReviewing ? <Loader2 className="spin" size={14} /> : <ListFilter size={14} />}
                   <span>Review</span>
                 </button>
+                <button
+                  className="review-trigger"
+                  type="button"
+                  onClick={() => void runGitChanges()}
+                  disabled={isBooting || isIndexing || isLoadingGitChanges || repos.length === 0}
+                >
+                  {isLoadingGitChanges ? <Loader2 className="spin" size={14} /> : <GitCompare size={14} />}
+                  <span>Changes</span>
+                </button>
               </div>
             </div>
             <label className="list-search">
@@ -1485,6 +1586,83 @@ function App() {
               </div>
             )}
           </div>
+          {(gitChanges || isLoadingGitChanges || gitChangesError) && (
+            <section className="review-panel changes-panel" aria-label="Changed docs">
+              <div className="review-panel-header">
+                <div>
+                  <p className="eyebrow">Git changes</p>
+                  <h3>{gitChanges?.scope.label ?? (repoFilter === "all" ? "All repos" : repoFilter)}</h3>
+                </div>
+                {gitChanges && (
+                  <span>
+                    {gitChanges.reposScanned} {gitChanges.reposScanned === 1 ? "repo" : "repos"}
+                  </span>
+                )}
+              </div>
+
+              {isLoadingGitChanges && (
+                <div className="review-message">
+                  <Loader2 className="spin" size={16} />
+                  <span>Checking local Git status...</span>
+                </div>
+              )}
+
+              {gitChangesError && (
+                <div className="review-message is-error">
+                  <span>{gitChangesError}</span>
+                </div>
+              )}
+
+              {gitChanges && !isLoadingGitChanges && (
+                <>
+                  <div className="review-counts">
+                    <span>{gitChanges.changeCount} changed docs</span>
+                    <span>{gitChanges.returnedChangeCount} returned</span>
+                    <span>{gitChanges.repoCount - gitChanges.reposScanned} non-git repos skipped</span>
+                  </div>
+
+                  {gitChanges.changeCount === 0 ? (
+                    <div className="review-message">
+                      <span>No changed note-like files found in this Git scope.</span>
+                    </div>
+                  ) : (
+                    <div className="review-issues change-list">
+                      {gitChanges.changes.map((change) => {
+                        const isOpenable = change.status !== "deleted" && noteByRootRelativePath.has(change.rootRelativePath);
+
+                        return (
+                          <button
+                            className={`review-issue change-row is-${change.status}`}
+                            key={change.id}
+                            type="button"
+                            onClick={() => openGitChange(change)}
+                            disabled={!isOpenable}
+                          >
+                            <span className="change-status">{gitChangeStatusLabel(change.status)}</span>
+                            <span className="review-issue-main">
+                              <strong>{change.title}</strong>
+                              <span>
+                                {change.repoName}/{change.repoRelativePath}
+                              </span>
+                              {change.previousRepoRelativePath && (
+                                <em>from {change.repoName}/{change.previousRepoRelativePath}</em>
+                              )}
+                            </span>
+                            <span className="change-stage">
+                              {change.staged ? "staged" : ""}
+                              {change.staged && change.unstaged ? " + " : ""}
+                              {change.unstaged ? "unstaged" : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {cappedGitChangesMessage && <div className="review-more">{cappedGitChangesMessage}</div>}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+          )}
           {(docReview || isReviewing || reviewError) && (
             <section className="review-panel" aria-label="Docs review">
               <div className="review-panel-header">

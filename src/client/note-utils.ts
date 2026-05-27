@@ -4,6 +4,8 @@ import type {
   DocReviewSeverity,
   DocSearchPayload,
   DocSearchResult,
+  GitChangesPayload,
+  GitChangeStatus,
   NoteSummary,
   RepoSummary,
 } from "../shared/types";
@@ -155,6 +157,40 @@ export function searchResultLimitMessage(
     ? "Narrow the search to inspect more."
     : "Narrow the search or select a repo to inspect more.";
   return `Showing first ${search.returnedResultCount} of ${search.resultCount} matches. ${nextAction}`;
+}
+
+export function gitChangeStatusLabel(status: GitChangeStatus) {
+  switch (status) {
+    case "modified":
+      return "Modified";
+    case "added":
+      return "Added";
+    case "deleted":
+      return "Deleted";
+    case "renamed":
+      return "Renamed";
+    case "copied":
+      return "Copied";
+    case "untracked":
+      return "Untracked";
+    case "typechange":
+      return "Type changed";
+    case "conflicted":
+      return "Conflict";
+  }
+}
+
+export function gitChangesLimitMessage(
+  changes: Pick<GitChangesPayload, "changeCount" | "returnedChangeCount" | "scope">,
+) {
+  if (changes.returnedChangeCount >= changes.changeCount) {
+    return "";
+  }
+
+  const nextAction = changes.scope.repoName
+    ? "Narrow the repo's changes outside Repo Notes to inspect fewer files."
+    : "Select a repo to inspect fewer changes.";
+  return `Showing first ${changes.returnedChangeCount} of ${changes.changeCount} changed docs. ${nextAction}`;
 }
 
 export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {

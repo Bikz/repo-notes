@@ -33,6 +33,8 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 - `GET /api/search?q=<query>&repo=<repoName>`: searches one repository.
 - `GET /api/review`: reviews all indexed docs for local hygiene issues and returns bounded metadata-only findings.
 - `GET /api/review?repo=<repoName>`: reviews one repository.
+- `GET /api/git/changes`: returns metadata-only Git status for changed note-like files across Git repositories.
+- `GET /api/git/changes?repo=<repoName>`: returns metadata-only Git status for one repository.
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
 - `PUT /api/files`: updates an existing note file in place.
 - `PATCH /api/files`: renames or moves an existing note within its current repository.
@@ -70,6 +72,12 @@ After an index response, the API queues a best-effort in-memory search-content w
 Docs review is an on-demand workflow, separate from indexing, because it reads document bodies to inspect markers and Markdown links. The review scanner uses the current index as its scope, keeps reads concurrency-limited, ignores remote links and anchors-only links, checks local Markdown targets with workspace-relative safety resolution, and returns a capped list of findings.
 
 Review payloads are metadata-only: category, severity, repository, root-relative path, title, line, target path, related counts, and aggregate totals. They intentionally do not include snippets or full note contents.
+
+## Git Changes
+
+Git changes are an on-demand, read-only handoff workflow. The API scopes work to indexed direct-child repositories that have Git metadata, runs `git status --porcelain=v1 -z --untracked-files=all` with non-shell arguments, filters results to supported note extensions and allowed note paths, and returns changed-path metadata only. Deleted notes are validated by path because they no longer exist on disk. Existing untracked or modified notes are still opened through the normal `/api/files` path, so content reads keep the same workspace and symlink checks as the rest of the app.
+
+The client shows changed docs in the middle pane with status labels and staged/unstaged state. Clicking an openable changed doc follows the normal note-opening flow; deleted docs stay visible as handoff context but are not opened from Repo Notes.
 
 ## Preview Navigation
 

@@ -156,3 +156,10 @@
 - Browser proof used a disposable workspace, deleted `alpha/docs/delete-me.md` through the More menu, verified the old API path returned 404, and confirmed the list/reader cleared with a clean console:
   - `output/playwright/repo-notes-delete-note.png`
 - Delete validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Started the Git-aware handoff workflow so product teams can see which local docs changed before leaving Repo Notes for commits or reviews.
+- Added metadata-only `GET /api/git/changes` support for all repos or one repo. It scopes to direct child Git repositories, uses non-shell `git status --porcelain=v1 -z`, filters to supported note paths, skips non-note and ignored/generated files, reports modified/untracked/deleted statuses, and avoids returning file contents.
+- Added a middle-pane `Changes` panel and More-menu action in the dark Notes-style shell. It shows changed docs with status/staged metadata, opens changed docs that still exist in the current index, and keeps deleted docs visible as handoff context without attempting to read them.
+- Extended smoke coverage to initialize a disposable Git repo, move/delete/create notes through the API, and verify Git changes reports the deleted source and untracked moved destination paths.
+- Browser proof used a disposable Git repo with modified, untracked, and deleted docs, opened the changed-docs panel, opened the modified doc from the panel, verified the API stayed metadata-only, and saved:
+  - `output/playwright/repo-notes-git-changes-panel.png`
+- Git changes validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.

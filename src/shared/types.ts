@@ -131,3 +131,43 @@ export interface DeleteNoteRequest {
 export interface DeleteNotePayload {
   note: NoteSummary;
 }
+
+export type GitChangeStatus =
+  | "modified"
+  | "added"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "untracked"
+  | "typechange"
+  | "conflicted";
+
+export interface GitChangedNote {
+  id: string;
+  repoName: string;
+  repoRelativePath: string;
+  rootRelativePath: string;
+  previousRepoRelativePath?: string;
+  previousRootRelativePath?: string;
+  status: GitChangeStatus;
+  staged: boolean;
+  unstaged: boolean;
+  isIndexed: boolean;
+  extension: SupportedNoteExtension;
+  kind: NoteKind;
+  title: string;
+}
+
+export interface GitChangesPayload {
+  generatedAtMs: number;
+  scope: {
+    repoName?: string;
+    label: string;
+  };
+  repoCount: number;
+  reposScanned: number;
+  changeCount: number;
+  returnedChangeCount: number;
+  isTruncated: boolean;
+  changes: GitChangedNote[];
+}

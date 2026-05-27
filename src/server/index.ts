@@ -9,6 +9,7 @@ import {
 } from "./file-store";
 import { resolvePreviewAsset } from "./assets";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
+import { getWorkspaceGitChanges } from "./git";
 import { getWorkspaceIndex } from "./index-cache";
 import { reviewWorkspaceDocs } from "./review";
 import { queueSearchContentCacheWarmup, searchWorkspaceDocs } from "./search";
@@ -89,6 +90,21 @@ async function handleApiRequest(request: Request, url: URL) {
     });
 
     return jsonResponse(await reviewWorkspaceDocs(config.rootPath, index, { repoName }));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/git/changes") {
+    const config = await loadWorkspaceConfig();
+    if (!config.rootExists) {
+      throw new HttpError("Workspace root does not exist.", 400);
+    }
+
+    const repoName = url.searchParams.get("repo") ?? undefined;
+    const index = await getWorkspaceIndex(config.rootPath, {
+      backgroundRefresh: url.searchParams.get("background") === "1",
+      force: url.searchParams.get("force") === "1",
+    });
+
+    return jsonResponse(await getWorkspaceGitChanges(config.rootPath, index, { repoName }));
   }
 
   if (request.method === "GET" && url.pathname === "/api/search") {
