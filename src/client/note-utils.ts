@@ -14,7 +14,14 @@ export type NoteSortMode = "path" | "updated";
 export type SessionViewMode = "preview" | "edit" | "split";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
-export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel" | "format-bold" | "format-link";
+export type AppShortcut =
+  | "save"
+  | "focus-search"
+  | "quick-open"
+  | "new-note"
+  | "close-panel"
+  | "format-bold"
+  | "format-link";
 export type CreateTemplateId = "blank" | "prd" | "rfc" | "decision" | "runbook";
 export type MarkdownFormatAction = "heading" | "bold" | "list" | "link" | "code";
 
@@ -479,6 +486,44 @@ export function gitChangesLimitMessage(
   return `Showing first ${changes.returnedChangeCount} of ${changes.changeCount} changed docs. ${nextAction}`;
 }
 
+export function quickOpenNotes(
+  notes: NoteSummary[],
+  query: string,
+  currentRepoName: string,
+  limit = 30,
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  const normalizedLimit = Math.max(0, Math.floor(limit));
+
+  return notes
+    .map((note) => {
+      const haystack = `${note.title} ${note.repoRelativePath} ${note.repoName}`.toLowerCase();
+      if (tokens.some((token) => !haystack.includes(token))) {
+        return null;
+      }
+
+      return {
+        note,
+        score: quickOpenScore(note, normalizedQuery, currentRepoName),
+      };
+    })
+    .filter((item): item is { note: NoteSummary; score: number } => item !== null)
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return right.score - left.score;
+      }
+
+      if (left.note.updatedAtMs !== right.note.updatedAtMs) {
+        return right.note.updatedAtMs - left.note.updatedAtMs;
+      }
+
+      return compareNotePaths(left.note, right.note);
+    })
+    .slice(0, normalizedLimit)
+    .map((item) => item.note);
+}
+
 export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
   if (event.isComposing) {
     return null;
@@ -498,6 +543,8 @@ export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
       return "save";
     case "f":
       return "focus-search";
+    case "p":
+      return "quick-open";
     case "n":
       return "new-note";
     case "b":
@@ -507,6 +554,42 @@ export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
     default:
       return null;
   }
+}
+
+function quickOpenScore(note: NoteSummary, normalizedQuery: string, currentRepoName: string) {
+  let score = note.repoName === currentRepoName ? 100 : 0;
+
+  if (!normalizedQuery) {
+    return score;
+  }
+
+  const normalizedTitle = note.title.toLowerCase();
+  const normalizedPath = note.repoRelativePath.toLowerCase();
+  const normalizedRepo = note.repoName.toLowerCase();
+
+  if (normalizedTitle === normalizedQuery) {
+    score += 90;
+  } else if (normalizedTitle.startsWith(normalizedQuery)) {
+    score += 70;
+  } else if (normalizedTitle.includes(normalizedQuery)) {
+    score += 50;
+  }
+
+  if (normalizedPath === normalizedQuery) {
+    score += 60;
+  } else if (normalizedPath.startsWith(normalizedQuery)) {
+    score += 40;
+  } else if (normalizedPath.includes(normalizedQuery)) {
+    score += 25;
+  }
+
+  if (normalizedRepo === normalizedQuery) {
+    score += 30;
+  } else if (normalizedRepo.includes(normalizedQuery)) {
+    score += 10;
+  }
+
+  return score;
 }
 
 export function isCreateDraftDirty(draft: CreateDraftFields, existingRepoRelativePaths: string[] = []) {

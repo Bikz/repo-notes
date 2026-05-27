@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import type { FormEvent } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
@@ -65,6 +66,7 @@ import {
   noteHistoryTarget,
   previewAssetApiPath,
   pushNoteHistory,
+  quickOpenNotes,
   restoreWorkspaceSession,
   resolveMissingPreviewLinkTarget,
   resolvePreviewLinkTarget,
@@ -170,6 +172,9 @@ function App() {
   const [noteSort, setNoteSort] = useState<NoteSortMode>("path");
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [mobilePane, setMobilePane] = useState<MobilePane>("browse");
+  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
+  const [quickOpenQuery, setQuickOpenQuery] = useState("");
+  const [quickOpenActiveIndex, setQuickOpenActiveIndex] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [areSourcesVisible, setAreSourcesVisible] = useState(true);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -209,6 +214,7 @@ function App() {
   const [error, setError] = useState("");
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const quickOpenInputRef = useRef<HTMLInputElement | null>(null);
   const pendingPreviewAnchorRef = useRef<PreviewAnchorTarget | null>(null);
   const selectedPathRef = useRef("");
 
@@ -221,6 +227,13 @@ function App() {
   }, [notes]);
   const previousHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, -1) ?? "") ?? null;
   const nextHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, 1) ?? "") ?? null;
+  const quickOpenRepoContext = repoFilter === "all" ? selectedNote?.repoName ?? "" : repoFilter;
+  const quickOpenResults = useMemo(
+    () => quickOpenNotes(notes, quickOpenQuery, quickOpenRepoContext, 40),
+    [notes, quickOpenQuery, quickOpenRepoContext],
+  );
+  const selectedQuickOpenIndex =
+    quickOpenResults.length === 0 ? -1 : Math.min(quickOpenActiveIndex, quickOpenResults.length - 1);
 
   useEffect(() => {
     selectedPathRef.current = selectedPath;
@@ -619,6 +632,12 @@ function App() {
         return;
       }
 
+      if (shortcut === "quick-open") {
+        event.preventDefault();
+        openQuickOpen();
+        return;
+      }
+
       if (shortcut === "new-note") {
         event.preventDefault();
         if (repos.length > 0 && !isCreateOpen && !isMoveOpen) {
@@ -644,8 +663,12 @@ function App() {
         return;
       }
 
-      if (shortcut === "close-panel" && (isCreateOpen || isMoveOpen || isMoreOpen || error || notice)) {
+      if (shortcut === "close-panel" && (isQuickOpenOpen || isCreateOpen || isMoveOpen || isMoreOpen || error || notice)) {
         event.preventDefault();
+        if (isQuickOpenOpen) {
+          closeQuickOpen();
+          return;
+        }
         if (isCreateOpen && !closeCreateDrawer()) {
           return;
         }
@@ -1083,6 +1106,72 @@ function App() {
     }
   }
 
+  function openQuickOpen() {
+    if (!workspaceIndex || notes.length === 0) {
+      return;
+    }
+
+    if (isCreateOpen && !closeCreateDrawer()) {
+      return;
+    }
+    if (isMoveOpen && !closeMoveDrawer()) {
+      return;
+    }
+
+    setIsMoreOpen(false);
+    setQuickOpenQuery("");
+    setQuickOpenActiveIndex(0);
+    setIsQuickOpenOpen(true);
+    window.requestAnimationFrame(() => {
+      quickOpenInputRef.current?.focus();
+      quickOpenInputRef.current?.select();
+    });
+  }
+
+  function closeQuickOpen() {
+    setIsQuickOpenOpen(false);
+    setQuickOpenQuery("");
+    setQuickOpenActiveIndex(0);
+  }
+
+  function selectQuickOpenNote(note: NoteFilePayload["note"]) {
+    if (!openNote(note, { repoName: note.repoName })) {
+      return;
+    }
+
+    closeQuickOpen();
+    setNotice(`Opened ${note.title}.`);
+  }
+
+  function handleQuickOpenKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      setQuickOpenActiveIndex((current) => {
+        if (quickOpenResults.length === 0) {
+          return 0;
+        }
+
+        return (current + direction + quickOpenResults.length) % quickOpenResults.length;
+      });
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const selectedQuickOpenNote = quickOpenResults[selectedQuickOpenIndex];
+      if (selectedQuickOpenNote) {
+        selectQuickOpenNote(selectedQuickOpenNote);
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeQuickOpen();
+    }
+  }
+
   function openNote(note: NoteFilePayload["note"], options: OpenNoteOptions = {}) {
     const isSameNote = note.rootRelativePath === selectedPath;
 
@@ -1466,6 +1555,16 @@ function App() {
               aria-pressed={!areSourcesVisible}
             >
               <PanelLeft size={18} />
+            </button>
+            <button
+              className={`round-button ${isQuickOpenOpen ? "is-active" : ""}`}
+              type="button"
+              onClick={openQuickOpen}
+              disabled={!workspaceIndex || notes.length === 0}
+              aria-label="Quick open"
+              aria-keyshortcuts="Meta+P Control+P"
+            >
+              <Search size={18} />
             </button>
             <button
               className="round-button"
@@ -2259,6 +2358,63 @@ function App() {
         </section>
       </section>
 
+        {isQuickOpenOpen && (
+          <div className="quick-open-scrim" role="presentation" onClick={closeQuickOpen}>
+            <section
+              className="quick-open-panel"
+              aria-labelledby="quick-open-title"
+              aria-modal="true"
+              role="dialog"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="quick-open-search">
+                <Search size={18} />
+                <input
+                  ref={quickOpenInputRef}
+                  value={quickOpenQuery}
+                  onChange={(event) => {
+                    setQuickOpenQuery(event.target.value);
+                    setQuickOpenActiveIndex(0);
+                  }}
+                  onKeyDown={handleQuickOpenKeyDown}
+                  placeholder="Jump to a doc by title, repo, or path"
+                  spellCheck={false}
+                  aria-labelledby="quick-open-title"
+                />
+              </div>
+              <div className="quick-open-heading">
+                <div>
+                  <p className="eyebrow">Quick open</p>
+                  <h2 id="quick-open-title">Switch docs instantly</h2>
+                </div>
+                <span>{quickOpenResults.length} shown</span>
+              </div>
+              <div className="quick-open-results" role="listbox" aria-label="Quick open results">
+                {quickOpenResults.length === 0 ? (
+                  <div className="quick-open-empty">No docs match this title, repo, or path.</div>
+                ) : (
+                  quickOpenResults.map((note, index) => (
+                    <button
+                      className={`quick-open-row ${index === selectedQuickOpenIndex ? "is-active" : ""}`}
+                      key={note.rootRelativePath}
+                      type="button"
+                      role="option"
+                      aria-selected={index === selectedQuickOpenIndex}
+                      onMouseEnter={() => setQuickOpenActiveIndex(index)}
+                      onClick={() => selectQuickOpenNote(note)}
+                    >
+                      <span className="quick-open-title">{note.title}</span>
+                      <span className="quick-open-path">{note.rootRelativePath}</span>
+                      <span className="quick-open-meta">
+                        {formatDateLabel(note.updatedAtMs)} · {note.kind} · {formatBytes(note.byteSize)}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+        )}
         {isCreateOpen && (
           <div className="drawer-scrim" role="presentation" onClick={() => void closeCreateDrawer()}>
             <aside

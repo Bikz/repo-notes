@@ -200,3 +200,8 @@
 - Browser proof used a disposable workspace and isolated config path, selected a linked target note, verified two backlink chips with line numbers, clicked one, and confirmed the source note opened in split mode at the backlink line:
   - `output/playwright/repo-notes-backlinks-panel.png`
 - Backlink validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, and Playwright browser proof.
+- Continued the file-switching workflow with a metadata-only Quick Open palette so product teams can jump across repos without exposing a nested folder tree or waiting on content search.
+- Added `quickOpenNotes` ranking over title, path, and repo metadata, plus Command/Control-P as the Quick Open shortcut. Results prioritize the active repo when one is selected and still open through the existing dirty-draft-safe note path.
+- Browser proof used a disposable workspace and isolated config path, filtered Quick Open to one roadmap doc, opened it with Enter, verified the repo context changed to the target repo, then captured the palette filtered to an alpha roadmap:
+  - `output/playwright/repo-notes-quick-open.png`
+- Quick Open validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.

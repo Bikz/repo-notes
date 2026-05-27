@@ -23,6 +23,7 @@ import {
   noteHistoryTarget,
   previewAssetApiPath,
   pushNoteHistory,
+  quickOpenNotes,
   restoreWorkspaceSession,
   resolveMissingPreviewLinkTarget,
   resolvePreviewLinkTarget,
@@ -292,9 +293,31 @@ test("git change helpers label status and capped change results", () => {
   );
 });
 
+test("quickOpenNotes ranks current-repo metadata matches without reading content", () => {
+  const quickNotes: NoteSummary[] = [
+    note("alpha", "docs/product-roadmap.md", "Product roadmap", 100),
+    note("beta", "docs/product-roadmap.md", "Product roadmap", 400),
+    note("alpha", "docs/runbooks/release.md", "Release runbook", 300),
+    note("alpha", "notes/research.md", "Research", 200),
+  ];
+
+  expect(quickOpenNotes(quickNotes, "road alpha", "all").map((item) => item.rootRelativePath)).toEqual([
+    "alpha/docs/product-roadmap.md",
+  ]);
+  expect(quickOpenNotes(quickNotes, "product", "alpha").map((item) => item.rootRelativePath)).toEqual([
+    "alpha/docs/product-roadmap.md",
+    "beta/docs/product-roadmap.md",
+  ]);
+  expect(quickOpenNotes(quickNotes, "", "alpha", 2).map((item) => item.rootRelativePath)).toEqual([
+    "alpha/docs/runbooks/release.md",
+    "alpha/notes/research.md",
+  ]);
+});
+
 test("appShortcutForKey maps editing shortcuts without stealing plain typing", () => {
   expect(appShortcutForKey(keyEvent("s", { metaKey: true }))).toBe("save");
   expect(appShortcutForKey(keyEvent("F", { ctrlKey: true }))).toBe("focus-search");
+  expect(appShortcutForKey(keyEvent("p", { metaKey: true }))).toBe("quick-open");
   expect(appShortcutForKey(keyEvent("n", { metaKey: true }))).toBe("new-note");
   expect(appShortcutForKey(keyEvent("Escape"))).toBe("close-panel");
   expect(appShortcutForKey(keyEvent("b", { metaKey: true }))).toBe("format-bold");

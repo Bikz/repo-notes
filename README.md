@@ -18,6 +18,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 
 - Configure a local workspace root.
 - Render notes from every child repository in one searchable surface.
+- Jump to any indexed doc through a metadata-only Quick Open palette.
 - Search titles, paths, repository names, and note contents with bounded local snippets.
 - See when a broad content search is capped and narrow by query or repository.
 - Preview Markdown, plain text, and HTML with client-side sanitization.
@@ -98,6 +99,8 @@ Backlinks run on demand for the selected note. The API reads same-repository Mar
 Git changes run on demand against direct child repositories that have Git metadata. Change responses include changed note paths, status labels, staged/unstaged state, and index presence. They do not include file contents or diffs. Diff previews require an explicit changed note path, are capped by line and byte limits, and are not cached.
 
 The browser stores a small root-scoped session payload in local storage so Repo Notes can reopen to the last valid browsing context. That payload is limited to the configured root path, selected repo, selected note path, note sort, view mode, and whether the projects pane is visible; it does not include note contents, search snippets, review results, or editor drafts.
+
+Quick Open is browser-side and metadata-only. It ranks indexed note titles, paths, and repository names from the current metadata index, prioritizes the active repository when there is one, and opens notes through the normal file-read and dirty-draft protection path.
 
 New-note templates are browser-side defaults for the create drawer. Choosing a template only pre-fills the proposed repository-relative path and initial content before the normal `POST /api/files` create request.
 

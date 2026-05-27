@@ -47,6 +47,10 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 
 The client renders Markdown and HTML in the browser with sanitization. The server treats note content as local text and does not transform it.
 
+## Quick Open
+
+Quick Open is a client-only switching workflow over the current metadata index. It filters note title, repository-relative path, and repository name in memory, ranks the active repository first when applicable, and never reads note bodies. Selecting a result uses the same `openNote` path as list, search, review, backlink, and history navigation, so dirty-draft protection, repo scoping, mobile read mode, and `/api/files` loading remain centralized.
+
 ## Editing
 
 The Markdown editor is a controlled browser textarea backed by the active note content loaded from `/api/files`. Formatting toolbar actions and editor-scoped formatting shortcuts are client-side text transforms over the current textarea selection; they update only the in-memory draft until the user explicitly saves through `PUT /api/files`, preserving the same modified-time conflict checks as manual typing.
