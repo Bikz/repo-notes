@@ -122,3 +122,7 @@
 - Mobile topbar proof confirmed the responsive shell still avoids horizontal overflow:
   - `output/playwright/repo-notes-history-mobile-topbar.png`
 - History and capped-search validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright console-error checks.
+- Added macOS-style editing shortcuts: Command/Control-S saves the active edited note, Command/Control-F focuses docs search, Command/Control-N opens the new-note drawer with current repo defaults, and Escape closes transient UI while protecting changed create drafts.
+- Hardened shortcut routing so create-drawer and workspace-root form focus cannot accidentally save a dirty background note.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-keyboard-shortcuts.png`

@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
 import type { DocReviewIssue, DocSearchResult, NoteSummary, RepoSummary } from "../shared/types";
 import {
+  appShortcutForKey,
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
+  isCreateDraftDirty,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
@@ -122,6 +124,32 @@ test("searchResultLimitMessage explains capped search results without implying p
   );
   expect(searchResultLimitMessage(searchPayload(40, 10, "alpha"))).toBe(
     "Showing first 10 of 40 matches. Narrow the search to inspect more.",
+  );
+});
+
+test("appShortcutForKey maps editing shortcuts without stealing plain typing", () => {
+  expect(appShortcutForKey(keyEvent("s", { metaKey: true }))).toBe("save");
+  expect(appShortcutForKey(keyEvent("F", { ctrlKey: true }))).toBe("focus-search");
+  expect(appShortcutForKey(keyEvent("n", { metaKey: true }))).toBe("new-note");
+  expect(appShortcutForKey(keyEvent("Escape"))).toBe("close-panel");
+  expect(appShortcutForKey(keyEvent("s"))).toBeNull();
+  expect(appShortcutForKey(keyEvent("s", { metaKey: true, shiftKey: true }))).toBeNull();
+  expect(appShortcutForKey(keyEvent("n", { metaKey: true, altKey: true }))).toBeNull();
+});
+
+test("appShortcutForKey ignores shortcuts while composing text", () => {
+  expect(appShortcutForKey(keyEvent("s", { metaKey: true, isComposing: true }))).toBeNull();
+});
+
+test("isCreateDraftDirty ignores repo defaults but protects changed draft fields", () => {
+  expect(isCreateDraftDirty({ repoName: "alpha", repoRelativePath: "notes/new-note.md", content: "# New note\n\n" })).toBe(
+    false,
+  );
+  expect(isCreateDraftDirty({ repoName: "alpha", repoRelativePath: "docs/brief.md", content: "# New note\n\n" })).toBe(
+    true,
+  );
+  expect(isCreateDraftDirty({ repoName: "alpha", repoRelativePath: "notes/new-note.md", content: "# Brief\n" })).toBe(
+    true,
   );
 });
 
@@ -301,5 +329,20 @@ function searchPayload(resultCount: number, returnedResultCount: number, repoNam
     resultCount,
     returnedResultCount,
     results: [],
+  };
+}
+
+function keyEvent(
+  key: string,
+  options: Partial<Record<"metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "isComposing", boolean>> = {},
+) {
+  return {
+    key,
+    metaKey: false,
+    ctrlKey: false,
+    shiftKey: false,
+    altKey: false,
+    isComposing: false,
+    ...options,
   };
 }

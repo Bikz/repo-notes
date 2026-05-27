@@ -25,11 +25,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import type { NoteHistoryState, NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
 import {
+  appShortcutForKey,
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
+  isCreateDraftDirty,
   initialReviewIssueCount,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
@@ -135,6 +137,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pendingPreviewAnchorRef = useRef<PreviewAnchorTarget | null>(null);
 
   const selectedNote = activeFile?.note ?? null;
@@ -412,6 +415,64 @@ function App() {
       window.clearTimeout(searchTimer);
     };
   }, [config?.rootExists, normalizedQuery, repoFilter, workspaceIndex]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const shortcut = appShortcutForKey(event);
+      if (!shortcut) {
+        return;
+      }
+
+      if (shortcut === "save") {
+        event.preventDefault();
+        const targetElement = event.target instanceof Element ? event.target : null;
+        if (isCreateOpen || targetElement?.closest(".workspace-footer")) {
+          return;
+        }
+
+        if (activeFile && isDirty && !isSaving) {
+          void saveFile();
+        }
+        return;
+      }
+
+      if (shortcut === "focus-search") {
+        event.preventDefault();
+        if (isCreateOpen && !closeCreateDrawer()) {
+          return;
+        }
+
+        setMobilePane("browse");
+        window.requestAnimationFrame(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        });
+        return;
+      }
+
+      if (shortcut === "new-note") {
+        event.preventDefault();
+        if (repos.length > 0 && !isCreateOpen) {
+          openCreateDrawer();
+        }
+        return;
+      }
+
+      if (shortcut === "close-panel" && (isCreateOpen || isMoreOpen || error || notice)) {
+        event.preventDefault();
+        if (isCreateOpen && !closeCreateDrawer()) {
+          return;
+        }
+
+        setIsMoreOpen(false);
+        setError("");
+        setNotice("");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
 
   async function updateRootPath(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -734,6 +795,19 @@ function App() {
     setIsCreateOpen(true);
   }
 
+  function closeCreateDrawer() {
+    if (isCreating) {
+      return false;
+    }
+
+    if (isCreateDraftDirty(createForm) && !window.confirm("Discard this new-note draft?")) {
+      return false;
+    }
+
+    setIsCreateOpen(false);
+    return true;
+  }
+
   function openReviewIssue(issue: DocReviewIssue) {
     const issueNote = notes.find((note) => note.rootRelativePath === issue.rootRelativePath);
     if (!issueNote) {
@@ -868,6 +942,7 @@ function App() {
               onClick={openCreateDrawer}
               disabled={repos.length === 0}
               aria-label="New note"
+              aria-keyshortcuts="Meta+N Control+N"
             >
               <SquarePen size={18} />
             </button>
@@ -1079,6 +1154,7 @@ function App() {
               <div className="search-box">
                 <Search size={15} />
                 <input
+                  ref={searchInputRef}
                   value={query}
                   onChange={(event) => {
                     const nextQuery = event.target.value;
@@ -1092,6 +1168,7 @@ function App() {
                   }}
                   placeholder="Title, path, repo, content"
                   spellCheck={false}
+                  aria-keyshortcuts="Meta+F Control+F"
                 />
               </div>
             </label>
@@ -1336,7 +1413,13 @@ function App() {
                       </button>
                     ))}
                   </div>
-                  <button className="primary-button" type="button" onClick={() => void saveFile()} disabled={!isDirty || isSaving}>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={() => void saveFile()}
+                    disabled={!isDirty || isSaving}
+                    aria-keyshortcuts="Meta+S Control+S"
+                  >
                     {isSaving ? <Loader2 className="spin" size={15} /> : <Save size={15} />}
                     <span>{isDirty ? "Save changes" : "Saved"}</span>
                   </button>
@@ -1394,7 +1477,7 @@ function App() {
       </section>
 
         {isCreateOpen && (
-          <div className="drawer-scrim" role="presentation" onClick={() => !isCreating && setIsCreateOpen(false)}>
+          <div className="drawer-scrim" role="presentation" onClick={() => void closeCreateDrawer()}>
             <aside
               className="create-drawer"
               aria-labelledby="create-note-title"
@@ -1407,7 +1490,7 @@ function App() {
                   <p className="eyebrow">Repo Notes</p>
                   <h2 id="create-note-title">New note</h2>
                 </div>
-                <button className="round-button" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">
+                <button className="round-button" type="button" onClick={() => void closeCreateDrawer()} aria-label="Close">
                   <X size={16} />
                 </button>
               </div>

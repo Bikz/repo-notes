@@ -26,6 +26,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Move back and forward through opened notes while exploring docs.
 - Render local preview images through the workspace-safe asset endpoint.
 - Edit existing files in place.
+- Use editor-grade keyboard shortcuts for save, search, new note, and dismissing transient panels.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
 - Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.

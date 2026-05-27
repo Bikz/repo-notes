@@ -11,6 +11,22 @@ import type {
 export type NoteSortMode = "path" | "updated";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
+export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel";
+
+export interface CreateDraftFields {
+  repoName: string;
+  repoRelativePath: string;
+  content: string;
+}
+
+interface ShortcutKeyEvent {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  isComposing?: boolean;
+}
 
 export interface NoteLineTarget {
   rootRelativePath: string;
@@ -129,6 +145,36 @@ export function searchResultLimitMessage(
     ? "Narrow the search to inspect more."
     : "Narrow the search or select a repo to inspect more.";
   return `Showing first ${search.returnedResultCount} of ${search.resultCount} matches. ${nextAction}`;
+}
+
+export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
+  if (event.isComposing) {
+    return null;
+  }
+
+  if (event.key === "Escape" && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    return "close-panel";
+  }
+
+  const hasCommandModifier = event.metaKey || event.ctrlKey;
+  if (!hasCommandModifier || event.shiftKey || event.altKey) {
+    return null;
+  }
+
+  switch (event.key.toLowerCase()) {
+    case "s":
+      return "save";
+    case "f":
+      return "focus-search";
+    case "n":
+      return "new-note";
+    default:
+      return null;
+  }
+}
+
+export function isCreateDraftDirty(draft: CreateDraftFields) {
+  return draft.repoRelativePath.trim() !== "notes/new-note.md" || draft.content !== "# New note\n\n";
 }
 
 export function filterReviewIssues(
