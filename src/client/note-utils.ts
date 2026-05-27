@@ -2,6 +2,7 @@ import type {
   DocReviewCategory,
   DocReviewIssue,
   DocReviewSeverity,
+  DocSearchPayload,
   DocSearchResult,
   NoteSummary,
   RepoSummary,
@@ -32,6 +33,11 @@ export interface NoteOutlineItem {
   line: number;
   level: number;
   title: string;
+}
+
+export interface NoteHistoryState {
+  entries: string[];
+  index: number;
 }
 
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
@@ -79,6 +85,50 @@ export function resolvePreferredCreateRepoName(repoFilter: string, selectedRepoN
 
 export function nextReviewIssueLimit(currentLimit: number, returnedIssueCount: number) {
   return Math.min(returnedIssueCount, currentLimit + initialReviewIssueCount);
+}
+
+export function pushNoteHistory(history: NoteHistoryState, rootRelativePath: string): NoteHistoryState {
+  const currentPath = history.entries[history.index];
+  if (!rootRelativePath || currentPath === rootRelativePath) {
+    return history;
+  }
+
+  const currentEntries = history.index >= 0 ? history.entries.slice(0, history.index + 1) : [];
+  const entries = [...currentEntries, rootRelativePath];
+  return {
+    entries,
+    index: entries.length - 1,
+  };
+}
+
+export function noteHistoryTarget(history: NoteHistoryState, direction: -1 | 1) {
+  const targetIndex = history.index + direction;
+  return targetIndex >= 0 && targetIndex < history.entries.length ? history.entries[targetIndex] : null;
+}
+
+export function moveNoteHistory(history: NoteHistoryState, direction: -1 | 1): NoteHistoryState {
+  const targetPath = noteHistoryTarget(history, direction);
+  if (!targetPath) {
+    return history;
+  }
+
+  return {
+    entries: history.entries,
+    index: history.index + direction,
+  };
+}
+
+export function searchResultLimitMessage(
+  search: Pick<DocSearchPayload, "resultCount" | "returnedResultCount" | "scope">,
+) {
+  if (search.returnedResultCount >= search.resultCount) {
+    return "";
+  }
+
+  const nextAction = search.scope.repoName
+    ? "Narrow the search to inspect more."
+    : "Narrow the search or select a repo to inspect more.";
+  return `Showing first ${search.returnedResultCount} of ${search.resultCount} matches. ${nextAction}`;
 }
 
 export function filterReviewIssues(

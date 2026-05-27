@@ -103,6 +103,17 @@
   position: relative;
 }
 
+.history-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.history-controls .round-button {
+  width: 34px;
+}
+
 .mobile-nav {
   display: none;
 }
@@ -418,6 +429,16 @@ textarea:focus {
 .search-status.is-error {
   color: #ffd8df;
   background: rgba(130, 28, 47, 0.2);
+}
+
+.search-limit-message {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #a9a9ae;
+  background: #18181a;
+  font-size: 12px;
+  font-weight: 690;
 }
 
 button {
@@ -1417,8 +1438,9 @@ button {
     justify-content: flex-end;
   }
 
-  .topbar-actions .round-button:first-child,
-  .topbar-actions .round-button:last-child {
+  .history-controls,
+  .topbar-actions .source-toggle,
+  .topbar-actions .more-button {
     display: none;
   }
 

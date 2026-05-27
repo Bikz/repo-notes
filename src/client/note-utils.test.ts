@@ -9,12 +9,16 @@ import {
   lineStartOffsetForLine,
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
+  moveNoteHistory,
   nextReviewIssueLimit,
+  noteHistoryTarget,
   previewAssetApiPath,
+  pushNoteHistory,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
+  searchResultLimitMessage,
   sortNotes,
 } from "./note-utils";
 
@@ -95,6 +99,30 @@ test("nextReviewIssueLimit pages through returned review issues", () => {
   expect(nextReviewIssueLimit(8, 20)).toBe(16);
   expect(nextReviewIssueLimit(16, 20)).toBe(20);
   expect(nextReviewIssueLimit(8, 8)).toBe(8);
+});
+
+test("note history supports back, forward, and branch replacement", () => {
+  const first = pushNoteHistory({ entries: [], index: -1 }, "alpha/docs/one.md");
+  const second = pushNoteHistory(first, "alpha/docs/two.md");
+  const back = moveNoteHistory(second, -1);
+  const branched = pushNoteHistory(back, "beta/docs/three.md");
+
+  expect(first).toEqual({ entries: ["alpha/docs/one.md"], index: 0 });
+  expect(pushNoteHistory(second, "alpha/docs/two.md")).toEqual(second);
+  expect(noteHistoryTarget(second, -1)).toBe("alpha/docs/one.md");
+  expect(noteHistoryTarget(back, 1)).toBe("alpha/docs/two.md");
+  expect(branched).toEqual({ entries: ["alpha/docs/one.md", "beta/docs/three.md"], index: 1 });
+  expect(moveNoteHistory(branched, 1)).toEqual(branched);
+});
+
+test("searchResultLimitMessage explains capped search results without implying pagination", () => {
+  expect(searchResultLimitMessage(searchPayload(12, 12))).toBe("");
+  expect(searchResultLimitMessage(searchPayload(900, 250))).toBe(
+    "Showing first 250 of 900 matches. Narrow the search or select a repo to inspect more.",
+  );
+  expect(searchResultLimitMessage(searchPayload(40, 10, "alpha"))).toBe(
+    "Showing first 10 of 40 matches. Narrow the search to inspect more.",
+  );
 });
 
 test("filterReviewIssues narrows issues by severity and category", () => {
@@ -258,5 +286,20 @@ function issue(category: DocReviewIssue["category"], severity: DocReviewIssue["s
     rootRelativePath: `alpha/docs/${category}.md`,
     title: category,
     message: category,
+  };
+}
+
+function searchPayload(resultCount: number, returnedResultCount: number, repoName?: string) {
+  return {
+    generatedAtMs: 1,
+    query: "roadmap",
+    scope: {
+      repoName,
+      label: repoName ?? "All repos",
+    },
+    searchedNotes: 100,
+    resultCount,
+    returnedResultCount,
+    results: [],
   };
 }

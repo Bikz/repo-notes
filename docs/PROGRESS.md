@@ -115,3 +115,10 @@
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-preview-local-image.png`
 - Local preview image validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright rendered-image check.
+- Added document history controls to the topbar so product teams can move back and forward through opened notes while following search results, review findings, and local preview links.
+- Added capped-search visibility when the server returns only the first batch of broad content matches, with copy that points users toward narrowing the query or repo instead of promising unavailable pagination.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-history-and-capped-search.png`
+- Mobile topbar proof confirmed the responsive shell still avoids horizontal overflow:
+  - `output/playwright/repo-notes-history-mobile-topbar.png`
+- History and capped-search validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright console-error checks.

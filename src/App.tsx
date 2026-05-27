@@ -2,6 +2,8 @@ import DOMPurify from "dompurify";
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   FilePlus2,
   Folder,
@@ -21,7 +23,7 @@ import type { FormEvent } from "react";
 import type { MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
+import type { NoteHistoryState, NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
 import {
   extractMarkdownOutline,
   filterReviewIssues,
@@ -32,12 +34,16 @@ import {
   lineStartOffsetForLine,
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
+  moveNoteHistory,
   nextReviewIssueLimit,
+  noteHistoryTarget,
   previewAssetApiPath,
+  pushNoteHistory,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
+  searchResultLimitMessage,
   sortNotes,
 } from "./client/note-utils";
 import type { ReviewCategoryFilter, ReviewSeverityFilter } from "./client/note-utils";
@@ -67,6 +73,7 @@ interface CreateFormState {
 interface OpenNoteOptions {
   repoName?: string;
   preserveReview?: boolean;
+  skipHistory?: boolean;
 }
 
 interface PreviewAnchorTarget {
@@ -97,6 +104,7 @@ function App() {
   const [rootPathInput, setRootPathInput] = useState("");
   const [workspaceIndex, setWorkspaceIndex] = useState<WorkspaceIndex | null>(null);
   const [selectedPath, setSelectedPath] = useState("");
+  const [noteHistory, setNoteHistory] = useState<NoteHistoryState>({ entries: [], index: -1 });
   const [activeFile, setActiveFile] = useState<NoteFilePayload | null>(null);
   const [editorValue, setEditorValue] = useState("");
   const [repoFilter, setRepoFilter] = useState("all");
@@ -133,6 +141,11 @@ function App() {
   const isDirty = activeFile !== null && editorValue !== activeFile.content;
   const repos = useMemo(() => workspaceIndex?.repos ?? [], [workspaceIndex]);
   const notes = useMemo(() => workspaceIndex?.notes ?? [], [workspaceIndex]);
+  const noteByRootRelativePath = useMemo(() => {
+    return new Map(notes.map((note) => [note.rootRelativePath, note]));
+  }, [notes]);
+  const previousHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, -1) ?? "") ?? null;
+  const nextHistoryNote = noteByRootRelativePath.get(noteHistoryTarget(noteHistory, 1) ?? "") ?? null;
 
   function openPendingPreviewAnchor(file: NoteFilePayload) {
     const pendingAnchor = pendingPreviewAnchorRef.current;
@@ -273,6 +286,7 @@ function App() {
     const searchRepoFilter = docSearch.scope.repoName ?? "all";
     return searchRepoFilter === repoFilter ? docSearch : null;
   }, [docSearch, normalizedQuery, repoFilter]);
+  const cappedSearchMessage = activeDocSearch ? searchResultLimitMessage(activeDocSearch) : "";
   const searchResultByPath = useMemo(() => {
     return new Map(activeDocSearch?.results.map((result) => [result.note.rootRelativePath, result]) ?? []);
   }, [activeDocSearch]);
@@ -423,6 +437,7 @@ function App() {
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setSelectedPath("");
+      setNoteHistory({ entries: [], index: -1 });
       setActiveFile(null);
       setEditorValue("");
       setNotice(nextConfig.rootExists ? "Workspace root saved." : "Root saved, but the path does not exist.");
@@ -460,6 +475,7 @@ function App() {
 
       if (selectedPath && !nextIndex.notes.some((note) => note.rootRelativePath === selectedPath)) {
         setSelectedPath("");
+        setNoteHistory({ entries: [], index: -1 });
         setActiveFile(null);
         setEditorValue("");
       }
@@ -521,6 +537,7 @@ function App() {
       setActiveFile(createdFile);
       setEditorValue(createdFile.content);
       setSelectedPath(createdFile.note.rootRelativePath);
+      setNoteHistory((current) => pushNoteHistory(current, createdFile.note.rootRelativePath));
       setRepoFilter(createdFile.note.repoName);
       setVisibleNoteCount(initialVisibleNoteCount);
       setMobilePane("read");
@@ -626,9 +643,32 @@ function App() {
 
     if (!isSameNote) {
       setSelectedPath(note.rootRelativePath);
+      if (!options.skipHistory) {
+        setNoteHistory((current) => pushNoteHistory(current, note.rootRelativePath));
+      }
     }
     setMobilePane("read");
     return true;
+  }
+
+  function openHistoryNote(direction: -1 | 1) {
+    const targetPath = noteHistoryTarget(noteHistory, direction);
+    if (!targetPath) {
+      return;
+    }
+
+    const targetNote = noteByRootRelativePath.get(targetPath);
+    if (!targetNote) {
+      setError("That note is no longer in the index. Refresh the workspace.");
+      return;
+    }
+
+    if (!openNote(targetNote, { repoName: targetNote.repoName, skipHistory: true })) {
+      return;
+    }
+
+    setNoteHistory((current) => moveNoteHistory(current, direction));
+    setNotice(`Opened ${targetNote.title}.`);
   }
 
   function selectNote(note: NoteFilePayload["note"]) {
@@ -790,8 +830,28 @@ function App() {
             <h1>Repo Notes</h1>
           </div>
           <div className="topbar-actions">
+            <div className="history-controls" aria-label="Note history">
+              <button
+                className="round-button"
+                type="button"
+                onClick={() => openHistoryNote(-1)}
+                disabled={!previousHistoryNote}
+                aria-label={previousHistoryNote ? `Back to ${previousHistoryNote.title}` : "Back"}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                className="round-button"
+                type="button"
+                onClick={() => openHistoryNote(1)}
+                disabled={!nextHistoryNote}
+                aria-label={nextHistoryNote ? `Forward to ${nextHistoryNote.title}` : "Forward"}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
             <button
-              className={`round-button ${areSourcesVisible ? "" : "is-active"}`}
+              className={`round-button source-toggle ${areSourcesVisible ? "" : "is-active"}`}
               type="button"
               onClick={() => {
                 setIsMoreOpen(false);
@@ -824,7 +884,7 @@ function App() {
               {isIndexing ? <Loader2 className="spin" size={18} /> : <RefreshCcw size={18} />}
             </button>
             <button
-              className={`round-button ${isMoreOpen ? "is-active" : ""}`}
+              className={`round-button more-button ${isMoreOpen ? "is-active" : ""}`}
               type="button"
               onClick={() => setIsMoreOpen((current) => !current)}
               aria-expanded={isMoreOpen}
@@ -1236,6 +1296,7 @@ function App() {
                 Show {Math.min(initialVisibleNoteCount, filteredNotes.length - visibleNotes.length)} more
               </button>
             )}
+            {cappedSearchMessage && <div className="search-limit-message">{cappedSearchMessage}</div>}
             {!isBooting && !isIndexing && filteredNotes.length === 0 && (
               <div className="empty-state">
                 <strong>No notes found.</strong>
