@@ -583,6 +583,23 @@ function App() {
         return;
       }
 
+      if (shortcut === "format-bold" || shortcut === "format-link") {
+        const targetElement = event.target instanceof HTMLTextAreaElement ? event.target : null;
+        if (
+          targetElement !== editorRef.current ||
+          isCreateOpen ||
+          isMoveOpen ||
+          activeFile?.note.kind !== "markdown" ||
+          viewMode === "preview"
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        applyEditorFormat(shortcut === "format-bold" ? "bold" : "link");
+        return;
+      }
+
       if (shortcut === "close-panel" && (isCreateOpen || isMoveOpen || isMoreOpen || error || notice)) {
         event.preventDefault();
         if (isCreateOpen && !closeCreateDrawer()) {
@@ -2037,6 +2054,13 @@ function App() {
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => applyEditorFormat(action)}
                           aria-label={label}
+                          aria-keyshortcuts={
+                            action === "bold"
+                              ? "Meta+B Control+B"
+                              : action === "link"
+                                ? "Meta+K Control+K"
+                                : undefined
+                          }
                           title={label}
                         >
                           <Icon size={15} />

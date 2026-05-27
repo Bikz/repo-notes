@@ -48,7 +48,7 @@ The client renders Markdown and HTML in the browser with sanitization. The serve
 
 ## Editing
 
-The Markdown editor is a controlled browser textarea backed by the active note content loaded from `/api/files`. Formatting toolbar actions are client-side text transforms over the current textarea selection; they update only the in-memory draft until the user explicitly saves through `PUT /api/files`, preserving the same modified-time conflict checks as manual typing.
+The Markdown editor is a controlled browser textarea backed by the active note content loaded from `/api/files`. Formatting toolbar actions and editor-scoped formatting shortcuts are client-side text transforms over the current textarea selection; they update only the in-memory draft until the user explicitly saves through `PUT /api/files`, preserving the same modified-time conflict checks as manual typing.
 
 ## Creation Templates
 

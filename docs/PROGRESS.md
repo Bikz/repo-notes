@@ -180,3 +180,7 @@
 - Browser proof used a disposable workspace, selected text in a Markdown note, applied bold formatting from the toolbar, saved the note, and verified the Markdown wrapper persisted on disk:
   - `output/playwright/repo-notes-markdown-toolbar.png`
 - Markdown toolbar validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Added editor-scoped Markdown formatting shortcuts: Command/Control-B for bold and Command/Control-K for links. The shortcuts only fire when the note editor textarea has focus, so global browser and shell actions stay out of the way.
+- Browser proof used a disposable workspace, selected text in the Markdown editor, applied bold and link formatting through keyboard shortcuts, saved the note, and verified both Markdown wrappers persisted on disk:
+  - `output/playwright/repo-notes-markdown-shortcuts.png`
+- Markdown shortcut validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.

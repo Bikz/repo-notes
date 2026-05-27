@@ -14,7 +14,7 @@ export type NoteSortMode = "path" | "updated";
 export type SessionViewMode = "preview" | "edit" | "split";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
-export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel";
+export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel" | "format-bold" | "format-link";
 export type CreateTemplateId = "blank" | "prd" | "rfc" | "decision" | "runbook";
 export type MarkdownFormatAction = "heading" | "bold" | "list" | "link" | "code";
 
@@ -468,6 +468,10 @@ export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
       return "focus-search";
     case "n":
       return "new-note";
+    case "b":
+      return "format-bold";
+    case "k":
+      return "format-link";
     default:
       return null;
   }

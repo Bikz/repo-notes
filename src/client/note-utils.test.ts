@@ -254,13 +254,17 @@ test("appShortcutForKey maps editing shortcuts without stealing plain typing", (
   expect(appShortcutForKey(keyEvent("F", { ctrlKey: true }))).toBe("focus-search");
   expect(appShortcutForKey(keyEvent("n", { metaKey: true }))).toBe("new-note");
   expect(appShortcutForKey(keyEvent("Escape"))).toBe("close-panel");
+  expect(appShortcutForKey(keyEvent("b", { metaKey: true }))).toBe("format-bold");
+  expect(appShortcutForKey(keyEvent("K", { ctrlKey: true }))).toBe("format-link");
   expect(appShortcutForKey(keyEvent("s"))).toBeNull();
   expect(appShortcutForKey(keyEvent("s", { metaKey: true, shiftKey: true }))).toBeNull();
   expect(appShortcutForKey(keyEvent("n", { metaKey: true, altKey: true }))).toBeNull();
+  expect(appShortcutForKey(keyEvent("b", { metaKey: true, altKey: true }))).toBeNull();
 });
 
 test("appShortcutForKey ignores shortcuts while composing text", () => {
   expect(appShortcutForKey(keyEvent("s", { metaKey: true, isComposing: true }))).toBeNull();
+  expect(appShortcutForKey(keyEvent("b", { metaKey: true, isComposing: true }))).toBeNull();
 });
 
 test("isCreateDraftDirty ignores repo defaults but protects changed draft fields", () => {
