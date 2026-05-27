@@ -55,3 +55,10 @@
 - Parallelized filesystem scanning with bounded async I/O so forced refreshes are less serial while still respecting ignored/generated directory rules.
 - Measured the current `/Users/torva/Developer` workspace at 23 repos and 4279 notes: cached metadata loads in about 3 ms, while a forced fresh scan now completes in about 0.2-0.3 seconds on this machine.
 - Cache/index validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright console-error check. Browser proof: `output/playwright/repo-notes-cached-index.png`.
+- Simplified the browsing model after product feedback: the left rail now shows only repository/project names, while the middle pane owns document search and organization.
+- Added location grouping for docs: all-docs mode groups by repo, selected-repo mode groups by repository root or top-level folder, and every row still shows its full repo-relative path for context.
+- Removed the nested sidebar hierarchy utilities/tests and replaced them with focused location grouping coverage.
+- Repo-only navigation validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright console-error checks. Browser proof artifacts:
+  - `output/playwright/repo-notes-repo-only-sidebar.png`
+  - `output/playwright/repo-notes-repo-only-selected-note.png`
+  - `output/playwright/repo-notes-repo-only-mobile-browse.png`
