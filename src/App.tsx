@@ -24,7 +24,10 @@ import {
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
+  initialReviewIssueCount,
+  nextReviewIssueLimit,
   resolveCreateRepoName,
+  resolvePreferredCreateRepoName,
   sortNotes,
 } from "./client/note-utils";
 import type {
@@ -71,6 +74,7 @@ function App() {
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
+  const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
   const [isBooting, setIsBooting] = useState(true);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
@@ -197,6 +201,10 @@ function App() {
   const noteGroups = useMemo(() => {
     return noteSort === "updated" ? groupNotesByRecency(visibleNotes) : groupNotesByLocation(visibleNotes, repoFilter);
   }, [noteSort, repoFilter, visibleNotes]);
+  const visibleReviewIssues = useMemo(() => {
+    return docReview?.issues.slice(0, reviewVisibleIssueCount) ?? [];
+  }, [docReview, reviewVisibleIssueCount]);
+  const canShowMoreReviewIssues = docReview ? visibleReviewIssues.length < docReview.returnedIssueCount : false;
   const listTitle = repoFilter === "all" ? "All notes" : repoFilter;
 
   const renderedHtml = useMemo(() => {
@@ -247,6 +255,7 @@ function App() {
       setWorkspaceIndex(null);
       setDocReview(null);
       setReviewError("");
+      setReviewVisibleIssueCount(initialReviewIssueCount);
       setSelectedPath("");
       setActiveFile(null);
       setEditorValue("");
@@ -269,6 +278,7 @@ function App() {
       setWorkspaceIndex(nextIndex);
       setDocReview(null);
       setReviewError("");
+      setReviewVisibleIssueCount(initialReviewIssueCount);
       setVisibleNoteCount(initialVisibleNoteCount);
       setCreateForm((current) => ({
         ...current,
@@ -359,6 +369,7 @@ function App() {
     setIsReviewing(true);
     setReviewError("");
     setNotice("");
+    setReviewVisibleIssueCount(initialReviewIssueCount);
 
     const params = new URLSearchParams({ force: "1" });
     if (repoFilter !== "all") {
@@ -452,6 +463,7 @@ function App() {
     setRepoFilter(repoName);
     setDocReview(null);
     setReviewError("");
+    setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
   }
 
@@ -459,6 +471,7 @@ function App() {
     setRepoFilter("all");
     setDocReview(null);
     setReviewError("");
+    setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
   }
 
@@ -469,8 +482,19 @@ function App() {
   function clearDocReview() {
     setDocReview(null);
     setReviewError("");
+    setReviewVisibleIssueCount(initialReviewIssueCount);
     setIsMoreOpen(false);
     setNotice("Review cleared.");
+  }
+
+  function openCreateDrawer() {
+    const preferredRepoName = resolvePreferredCreateRepoName(repoFilter, selectedNote?.repoName);
+    setIsMoreOpen(false);
+    setCreateForm((current) => ({
+      ...current,
+      repoName: resolveCreateRepoName(current.repoName, repos, preferredRepoName),
+    }));
+    setIsCreateOpen(true);
   }
 
   function openReviewIssue(issue: DocReviewIssue) {
@@ -512,10 +536,7 @@ function App() {
             <button
               className="round-button"
               type="button"
-              onClick={() => {
-                setIsMoreOpen(false);
-                setIsCreateOpen(true);
-              }}
+              onClick={openCreateDrawer}
               disabled={repos.length === 0}
               aria-label="New note"
             >
@@ -783,7 +804,7 @@ function App() {
                     </div>
                   ) : (
                     <div className="review-issues">
-                      {docReview.issues.slice(0, 8).map((issue) => (
+                      {visibleReviewIssues.map((issue) => (
                         <button
                           className="review-issue"
                           key={issue.id}
@@ -801,9 +822,22 @@ function App() {
                           </span>
                         </button>
                       ))}
-                      {docReview.issueCount > docReview.issues.slice(0, 8).length && (
+                      {canShowMoreReviewIssues && (
+                        <button
+                          className="review-show-more"
+                          type="button"
+                          onClick={() =>
+                            setReviewVisibleIssueCount((current) =>
+                              nextReviewIssueLimit(current, docReview.returnedIssueCount),
+                            )
+                          }
+                        >
+                          Show {Math.min(initialReviewIssueCount, docReview.returnedIssueCount - visibleReviewIssues.length)} more issues
+                        </button>
+                      )}
+                      {!canShowMoreReviewIssues && docReview.issueCount > docReview.returnedIssueCount && (
                         <div className="review-more">
-                          Showing {Math.min(8, docReview.returnedIssueCount)} of {docReview.issueCount} issues.
+                          Showing the first {docReview.returnedIssueCount} of {docReview.issueCount} issues. Narrow the scope to inspect more.
                         </div>
                       )}
                     </div>

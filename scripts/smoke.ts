@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DocReviewPayload, NoteFilePayload, WorkspaceConfig, WorkspaceIndex } from "../src/shared/types";
@@ -32,6 +32,13 @@ try {
   assert(index.repos.length === 1, "expected one indexed repository");
   assert(index.notes.length === 3, "expected three indexed notes");
   assert(index.notes.some((note) => note.rootRelativePath === "alpha/docs/README.md"), "README should be indexed");
+
+  await writeFile(join(root, "outside.md"), "# Outside\n", "utf8");
+  await symlink(join(root, "outside.md"), join(workspaceRoot, "alpha", "docs", "escaped.md"));
+  await assertRejects(
+    requestJson<NoteFilePayload>(`${baseUrl}/api/files?path=${encodeURIComponent("alpha/docs/escaped.md")}`),
+    "symlink",
+  );
 
   const review = await requestJson<DocReviewPayload>(`${baseUrl}/api/review?repo=alpha&force=1`);
   assert(review.notesReviewed === 3, "review should scan indexed notes");
@@ -146,4 +153,16 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+async function assertRejects(promise: Promise<unknown>, expectedMessage: string) {
+  try {
+    await promise;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    assert(message.includes(expectedMessage), `expected rejection to include ${expectedMessage}, got ${message}`);
+    return;
+  }
+
+  throw new Error(`Expected promise to reject with ${expectedMessage}`);
 }

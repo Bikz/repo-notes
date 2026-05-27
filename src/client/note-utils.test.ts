@@ -4,7 +4,9 @@ import {
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
+  nextReviewIssueLimit,
   resolveCreateRepoName,
+  resolvePreferredCreateRepoName,
   sortNotes,
 } from "./note-utils";
 
@@ -40,8 +42,16 @@ test("resolveCreateRepoName keeps valid selections and replaces stale ones", () 
   ];
 
   expect(resolveCreateRepoName("beta", repos)).toBe("beta");
+  expect(resolveCreateRepoName("alpha", repos, "beta")).toBe("beta");
+  expect(resolveCreateRepoName("alpha", repos, "missing")).toBe("alpha");
   expect(resolveCreateRepoName("stale", repos)).toBe("alpha");
   expect(resolveCreateRepoName("", [])).toBe("");
+});
+
+test("resolvePreferredCreateRepoName follows the active repo context before falling back to selected notes", () => {
+  expect(resolvePreferredCreateRepoName("alpha", "beta")).toBe("alpha");
+  expect(resolvePreferredCreateRepoName("all", "beta")).toBe("beta");
+  expect(resolvePreferredCreateRepoName("all")).toBe("");
 });
 
 test("groupNotesByLocation groups all docs by repo and selected repos by top folder", () => {
@@ -71,6 +81,12 @@ test("groupNotesByRecency creates Notes-style date sections", () => {
     ["month"],
     ["old"],
   ]);
+});
+
+test("nextReviewIssueLimit pages through returned review issues", () => {
+  expect(nextReviewIssueLimit(8, 20)).toBe(16);
+  expect(nextReviewIssueLimit(16, 20)).toBe(20);
+  expect(nextReviewIssueLimit(8, 8)).toBe(8);
 });
 
 const dayMs = 24 * 60 * 60 * 1000;

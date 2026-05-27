@@ -20,6 +20,8 @@ The workspace root must be an absolute path. File operations accept paths relati
 
 The scanner treats each direct child directory under the workspace root as a repository-like project. It skips generated, hidden, and dependency directories during recursive scans, with narrow exceptions for `.github` and `.well-known`.
 
+Before file contents are read, written, created, or reviewed, Repo Notes checks every existing path segment in the note path with `lstat` and rejects symlinks. This keeps a repo-relative note path from escaping the selected workspace or selected repository through a symlinked file or directory.
+
 ## API
 
 - `GET /api/config`: returns the configured root path and whether it exists.

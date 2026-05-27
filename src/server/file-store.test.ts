@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNoteFile, readNoteFile, writeNoteFile } from "./file-store";
@@ -111,6 +111,43 @@ test("file operations reject ignored workspace directories", async () => {
       content: "# Generated\n",
     }),
   ).rejects.toThrow("ignored");
+});
+
+test("file operations reject symlinked notes before reading or writing outside the workspace", async () => {
+  const root = await createTempWorkspace();
+  const outsideRoot = await mkdtemp(join(tmpdir(), "repo-notes-outside-"));
+  roots.push(outsideRoot);
+  const outsideNotePath = join(outsideRoot, "secret.md");
+  await writeFile(outsideNotePath, "# Outside\n");
+  await symlink(outsideNotePath, join(root, "alpha", "docs", "outside.md"));
+  const outsideStat = await stat(outsideNotePath);
+
+  await expect(readNoteFile(root, "alpha/docs/outside.md")).rejects.toThrow("symlink");
+  await expect(
+    writeNoteFile(root, {
+      rootRelativePath: "alpha/docs/outside.md",
+      content: "# Overwritten\n",
+      expectedUpdatedAtMs: outsideStat.mtimeMs,
+    }),
+  ).rejects.toThrow("symlink");
+  await expect(readFile(outsideNotePath, "utf8")).resolves.toBe("# Outside\n");
+});
+
+test("createNoteFile rejects symlinked parent directories before writing outside the selected repo", async () => {
+  const root = await createTempWorkspace();
+  const outsideRoot = await mkdtemp(join(tmpdir(), "repo-notes-create-outside-"));
+  roots.push(outsideRoot);
+  await rm(join(root, "alpha", "docs"), { recursive: true, force: true });
+  await symlink(outsideRoot, join(root, "alpha", "docs"));
+
+  await expect(
+    createNoteFile(root, {
+      repoName: "alpha",
+      repoRelativePath: "docs/escaped.md",
+      content: "# Escaped\n",
+    }),
+  ).rejects.toThrow("symlink");
+  await expect(readFile(join(outsideRoot, "escaped.md"), "utf8")).rejects.toThrow();
 });
 
 test("createNoteFile keeps new files inside the selected repository", async () => {

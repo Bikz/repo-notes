@@ -77,3 +77,13 @@
   - `output/playwright/repo-notes-shell-sources-collapsed.png`
   - `output/playwright/repo-notes-shell-mobile-browse.png`
 - Shell controls validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
+- Continued end-to-end hardening from the current pushed state. Product and technical sidecar audits identified two immediate gaps: review findings stopped at the first eight issues, and symlinked note paths could escape the workspace boundary.
+- Added current-context new-note defaults so opening the New note drawer from a selected repo or selected note preselects that repo instead of silently falling back to the first workspace repo.
+- Added review issue paging in the middle docs pane so product teams can inspect more returned findings from a review run without rerunning the scan.
+- Added symlink-boundary protection for read, write, create, and review flows: existing path segments are checked with `lstat`, symlinked note files or parent directories are rejected, and review reports unsafe indexed notes without reading outside the workspace.
+- Extended unit and smoke coverage for symlink escape attempts and review issue paging.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-current-repo-new-note.png`
+  - `output/playwright/repo-notes-review-show-more.png`
+  - `output/playwright/repo-notes-review-expanded.png`
+- Current-repo creation, review paging, and symlink-boundary validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.

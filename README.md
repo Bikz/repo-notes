@@ -61,6 +61,8 @@ bun run smoke
 
 Repo Notes is intentionally local-only. It does not upload file contents. File operations are constrained to the configured workspace root and only supported note extensions can be read, edited, or created.
 
+Repo Notes also refuses to follow symlinks in note paths before reading, writing, creating, or reviewing files, so a path that appears inside the workspace cannot escape to another location on disk.
+
 The configured root path is stored at:
 
 ```text

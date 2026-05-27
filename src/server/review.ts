@@ -8,7 +8,7 @@ import type {
   NoteSummary,
   WorkspaceIndex,
 } from "../shared/types";
-import { resolveWorkspaceFilePath } from "./safety";
+import { assertNoSymlinkInWorkspacePath, resolveWorkspaceFilePath } from "./safety";
 
 interface ReviewOptions {
   repoName?: string;
@@ -66,15 +66,15 @@ export async function reviewWorkspaceDocs(
           issues.push(issueFromDraft(issue));
         }
 
-        const content = await readFile(resolveWorkspaceFilePath(rootPath, note.rootRelativePath), "utf8").catch(
+        const content = await readIndexedNoteContent(rootPath, note).catch(
           (error: unknown) => {
-            if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+            if (isUnreadableIndexedNote(error)) {
               issues.push(
                 issueFromDraft({
                   category: "missing-file",
                   severity: "high",
                   note,
-                  message: "This indexed document no longer exists on disk. Refresh the index.",
+                  message: "This indexed document no longer exists or cannot be read safely. Refresh the index.",
                 }),
               );
               return null;
@@ -204,6 +204,7 @@ async function brokenLinkIssuesForNote(rootPath: string, note: NoteSummary, cont
 
     const rootRelativeTarget = resolveMarkdownLink(note, targetPath);
     try {
+      await assertNoSymlinkInWorkspacePath(rootPath, rootRelativeTarget);
       const targetStat = await lstat(resolveWorkspaceFilePath(rootPath, rootRelativeTarget));
       if (!targetStat.isFile() && !targetStat.isDirectory()) {
         throw new Error("Link target is not a file or directory.");
@@ -221,6 +222,18 @@ async function brokenLinkIssuesForNote(rootPath: string, note: NoteSummary, cont
   }
 
   return issues;
+}
+
+async function readIndexedNoteContent(rootPath: string, note: NoteSummary) {
+  await assertNoSymlinkInWorkspacePath(rootPath, note.rootRelativePath);
+  return readFile(resolveWorkspaceFilePath(rootPath, note.rootRelativePath), "utf8");
+}
+
+function isUnreadableIndexedNote(error: unknown) {
+  return (
+    error instanceof Error &&
+    (("code" in error && error.code === "ENOENT") || error.message.toLowerCase().includes("symlink"))
+  );
 }
 
 function duplicateTitleIssues(notes: NoteSummary[]): IssueDraft[] {

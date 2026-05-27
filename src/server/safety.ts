@@ -1,3 +1,4 @@
+import { lstat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import type { NoteKind, SupportedNoteExtension } from "../shared/types";
@@ -67,6 +68,34 @@ export function resolveWorkspaceFilePath(rootPath: string, rootRelativePath: str
   }
 
   return target;
+}
+
+export async function assertNoSymlinkInWorkspacePath(
+  rootPath: string,
+  rootRelativePath: string,
+  options: { allowMissing?: boolean } = {},
+) {
+  const root = resolveWorkspaceRoot(rootPath);
+  const target = resolveWorkspaceFilePath(root, rootRelativePath);
+  const pathParts = relative(root, target).split(sep).filter(Boolean);
+  let currentPath = root;
+
+  for (const part of pathParts) {
+    currentPath = join(currentPath, part);
+
+    try {
+      const pathStat = await lstat(currentPath);
+      if (pathStat.isSymbolicLink()) {
+        throw new Error(`Refusing to follow symlink in workspace path: ${part}`);
+      }
+    } catch (error) {
+      if (options.allowMissing && error instanceof Error && "code" in error && error.code === "ENOENT") {
+        return;
+      }
+
+      throw error;
+    }
+  }
 }
 
 export function assertSupportedNoteExtension(filePath: string): SupportedNoteExtension {

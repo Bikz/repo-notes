@@ -3,6 +3,7 @@ import { basename, dirname, extname } from "node:path";
 import type { CreateNoteRequest, NoteFilePayload, NoteSummary, UpdateNoteRequest } from "../shared/types";
 import {
   assertAllowedNotePath,
+  assertNoSymlinkInWorkspacePath,
   assertSupportedNoteExtension,
   noteKindForExtension,
   resolveWorkspaceFilePath,
@@ -15,6 +16,7 @@ export async function readNoteFile(rootPath: string, rootRelativePath: string): 
   const absolutePath = resolveWorkspaceFilePath(rootPath, rootRelativePath);
   assertSupportedNoteExtension(rootRelativePath);
   assertAllowedNotePath(rootRelativePath);
+  await assertNoSymlinkInWorkspacePath(rootPath, rootRelativePath);
 
   const [content, fileStat] = await Promise.all([readFile(absolutePath, "utf8"), stat(absolutePath)]);
   if (!fileStat.isFile()) {
@@ -34,6 +36,7 @@ export async function writeNoteFile(
   const absolutePath = resolveWorkspaceFilePath(rootPath, request.rootRelativePath);
   assertSupportedNoteExtension(request.rootRelativePath);
   assertAllowedNotePath(request.rootRelativePath);
+  await assertNoSymlinkInWorkspacePath(rootPath, request.rootRelativePath);
 
   const before = await stat(absolutePath);
   if (!before.isFile()) {
@@ -66,6 +69,7 @@ export async function createNoteFile(
   const absolutePath = resolveRepoFilePath(repoPath, normalizedRepoRelativePath);
   assertAllowedNotePath(normalizedRepoRelativePath);
   const rootRelativePath = toRootRelativePath(root, absolutePath);
+  await assertNoSymlinkInWorkspacePath(root, rootRelativePath, { allowMissing: true });
 
   await mkdir(dirname(absolutePath), { recursive: true });
   await writeFile(absolutePath, request.content, { encoding: "utf8", flag: "wx" }).catch((error) => {

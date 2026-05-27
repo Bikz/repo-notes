@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtemp, mkdir, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scanWorkspace } from "./indexer";
@@ -81,3 +81,25 @@ test("reviewWorkspaceDocs can review all repos and cap returned issues", async (
   expect(review.issues).toHaveLength(2);
 }
 );
+
+test("reviewWorkspaceDocs reports an unsafe symlinked indexed note without reading outside the workspace", async () => {
+  const root = await createReviewWorkspace();
+  const index = await scanWorkspace(root);
+  const outsideRoot = await mkdtemp(join(tmpdir(), "repo-notes-review-outside-"));
+  roots.push(outsideRoot);
+  await writeFile(join(outsideRoot, "external.md"), "# External\n");
+  await rm(join(root, "alpha", "docs", "ok.md"));
+  await symlink(join(outsideRoot, "external.md"), join(root, "alpha", "docs", "ok.md"));
+
+  const review = await reviewWorkspaceDocs(root, index, {
+    repoName: "alpha",
+    nowMs: Date.UTC(2026, 0, 1),
+  });
+
+  expect(review.issues).toContainEqual(
+    expect.objectContaining({
+      category: "missing-file",
+      rootRelativePath: "alpha/docs/ok.md",
+    }),
+  );
+});

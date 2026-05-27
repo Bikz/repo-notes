@@ -33,12 +33,26 @@ export function sortNotes(notes: NoteSummary[], mode: NoteSortMode) {
   });
 }
 
-export function resolveCreateRepoName(currentRepoName: string, repos: RepoSummary[]) {
+export const initialReviewIssueCount = 8;
+
+export function resolveCreateRepoName(currentRepoName: string, repos: RepoSummary[], preferredRepoName = "") {
+  if (repos.some((repo) => repo.name === preferredRepoName)) {
+    return preferredRepoName;
+  }
+
   if (repos.some((repo) => repo.name === currentRepoName)) {
     return currentRepoName;
   }
 
   return repos[0]?.name ?? "";
+}
+
+export function resolvePreferredCreateRepoName(repoFilter: string, selectedRepoName = "") {
+  return repoFilter === "all" ? selectedRepoName : repoFilter;
+}
+
+export function nextReviewIssueLimit(currentLimit: number, returnedIssueCount: number) {
+  return Math.min(returnedIssueCount, currentLimit + initialReviewIssueCount);
 }
 
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {

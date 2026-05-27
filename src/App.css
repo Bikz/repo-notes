@@ -813,6 +813,22 @@ button {
   text-align: center;
 }
 
+.review-show-more {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  color: #e2e2e5;
+  background: #222224;
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.review-show-more:hover {
+  background: #2a2a2d;
+}
+
 .note-list {
   min-height: 0;
   overflow: auto;
