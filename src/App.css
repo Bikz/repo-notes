@@ -722,6 +722,53 @@ button {
   color: #c8c8cd;
 }
 
+.review-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.review-filters label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.review-filters label span {
+  color: #77777d;
+  font-size: 9px;
+  font-weight: 820;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.review-filters select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  border-radius: 10px;
+  color: #d8d8dc;
+  background: #1b1b1d;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.review-filters strong {
+  min-width: 88px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  color: #a7a7ae;
+  background: #171719;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
 .review-message {
   min-width: 0;
   display: flex;
@@ -793,7 +840,6 @@ button {
 }
 
 .review-issue-main strong,
-.review-issue-main span,
 .review-issue-main em,
 .review-more {
   min-width: 0;
@@ -809,9 +855,16 @@ button {
 }
 
 .review-issue-main span {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
   color: #b6b6bc;
   font-size: 12px;
   font-weight: 640;
+  line-height: 1.35;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .review-issue-main em {
@@ -1385,6 +1438,14 @@ button {
 
   .review-counts {
     grid-template-columns: 1fr;
+  }
+
+  .review-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .review-filters strong {
+    width: 100%;
   }
 
   .note-list {

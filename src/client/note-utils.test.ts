@@ -1,9 +1,11 @@
 import { expect, test } from "bun:test";
-import type { NoteSummary, RepoSummary } from "../shared/types";
+import type { DocReviewIssue, NoteSummary, RepoSummary } from "../shared/types";
 import {
+  filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
+  lineStartOffsetForLine,
   nextReviewIssueLimit,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
@@ -89,6 +91,28 @@ test("nextReviewIssueLimit pages through returned review issues", () => {
   expect(nextReviewIssueLimit(8, 8)).toBe(8);
 });
 
+test("filterReviewIssues narrows issues by severity and category", () => {
+  const issues: DocReviewIssue[] = [
+    issue("broken-link", "high"),
+    issue("todo-marker", "medium"),
+    issue("large-file", "low"),
+  ];
+
+  expect(filterReviewIssues(issues, "all", "all")).toEqual(issues);
+  expect(filterReviewIssues(issues, "high", "all")).toEqual([issues[0]]);
+  expect(filterReviewIssues(issues, "all", "todo-marker")).toEqual([issues[1]]);
+  expect(filterReviewIssues(issues, "medium", "broken-link")).toEqual([]);
+});
+
+test("lineStartOffsetForLine maps 1-based lines to textarea offsets", () => {
+  expect(lineStartOffsetForLine("one\ntwo\nthree")).toBe(0);
+  expect(lineStartOffsetForLine("one\ntwo\nthree", 1)).toBe(0);
+  expect(lineStartOffsetForLine("one\ntwo\nthree", 3)).toBe(8);
+  expect(lineStartOffsetForLine("one\r\ntwo\r\nthree", 2)).toBe(5);
+  expect(lineStartOffsetForLine("one\ntwo\nthree", 99)).toBe(13);
+  expect(lineStartOffsetForLine("one\ntwo\nthree", 0)).toBe(0);
+});
+
 const dayMs = 24 * 60 * 60 * 1000;
 
 function note(repoName: string, repoRelativePath: string, title: string, updatedAtMs: number): NoteSummary {
@@ -102,5 +126,17 @@ function note(repoName: string, repoRelativePath: string, title: string, updated
     title,
     byteSize: 42,
     updatedAtMs,
+  };
+}
+
+function issue(category: DocReviewIssue["category"], severity: DocReviewIssue["severity"]): DocReviewIssue {
+  return {
+    id: `${category}-${severity}`,
+    category,
+    severity,
+    repoName: "alpha",
+    rootRelativePath: `alpha/docs/${category}.md`,
+    title: category,
+    message: category,
   };
 }

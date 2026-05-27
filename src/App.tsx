@@ -17,25 +17,30 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import type { NoteSortMode } from "./client/note-utils";
 import {
+  filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
   initialReviewIssueCount,
+  lineStartOffsetForLine,
   nextReviewIssueLimit,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
   sortNotes,
 } from "./client/note-utils";
+import type { ReviewCategoryFilter, ReviewSeverityFilter } from "./client/note-utils";
 import type {
   CreateNoteRequest,
+  DocReviewCategory,
   DocSearchPayload,
   DocSearchResult,
   DocReviewIssue,
   DocReviewPayload,
+  DocReviewSeverity,
   NoteFilePayload,
   UpdateNoteRequest,
   WorkspaceConfig,
@@ -51,6 +56,16 @@ interface CreateFormState {
   content: string;
 }
 
+interface ReviewJumpTarget {
+  rootRelativePath: string;
+  line?: number;
+}
+
+interface OpenNoteOptions {
+  repoName?: string;
+  preserveReview?: boolean;
+}
+
 const emptyCreateForm: CreateFormState = {
   repoName: "",
   repoRelativePath: "notes/new-note.md",
@@ -58,6 +73,16 @@ const emptyCreateForm: CreateFormState = {
 };
 const initialVisibleNoteCount = 300;
 const contentSearchMinLength = 2;
+const reviewSeverityOptions: DocReviewSeverity[] = ["high", "medium", "low"];
+const reviewCategoryOptions: DocReviewCategory[] = [
+  "broken-link",
+  "missing-file",
+  "todo-marker",
+  "empty-doc",
+  "duplicate-title",
+  "stale-doc",
+  "large-file",
+];
 
 function App() {
   const [config, setConfig] = useState<WorkspaceConfig | null>(null);
@@ -78,7 +103,10 @@ function App() {
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
   const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
+  const [reviewSeverityFilter, setReviewSeverityFilter] = useState<ReviewSeverityFilter>("all");
+  const [reviewCategoryFilter, setReviewCategoryFilter] = useState<ReviewCategoryFilter>("all");
   const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
+  const [pendingReviewTarget, setPendingReviewTarget] = useState<ReviewJumpTarget | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
@@ -90,6 +118,7 @@ function App() {
   const [reviewError, setReviewError] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedNote = activeFile?.note ?? null;
   const isDirty = activeFile !== null && editorValue !== activeFile.content;
@@ -223,10 +252,13 @@ function App() {
   const noteGroups = useMemo(() => {
     return noteSort === "updated" ? groupNotesByRecency(visibleNotes) : groupNotesByLocation(visibleNotes, repoFilter);
   }, [noteSort, repoFilter, visibleNotes]);
+  const filteredReviewIssues = useMemo(() => {
+    return filterReviewIssues(docReview?.issues ?? [], reviewSeverityFilter, reviewCategoryFilter);
+  }, [docReview, reviewCategoryFilter, reviewSeverityFilter]);
   const visibleReviewIssues = useMemo(() => {
-    return docReview?.issues.slice(0, reviewVisibleIssueCount) ?? [];
-  }, [docReview, reviewVisibleIssueCount]);
-  const canShowMoreReviewIssues = docReview ? visibleReviewIssues.length < docReview.returnedIssueCount : false;
+    return filteredReviewIssues.slice(0, reviewVisibleIssueCount);
+  }, [filteredReviewIssues, reviewVisibleIssueCount]);
+  const canShowMoreReviewIssues = visibleReviewIssues.length < filteredReviewIssues.length;
   const listTitle = repoFilter === "all" ? "All notes" : repoFilter;
 
   const renderedHtml = useMemo(() => {
@@ -258,6 +290,31 @@ function App() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
+
+  useEffect(() => {
+    if (!pendingReviewTarget || !activeFile || viewMode === "preview") {
+      return;
+    }
+
+    if (activeFile.note.rootRelativePath !== pendingReviewTarget.rootRelativePath) {
+      return;
+    }
+
+    const textarea = editorRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const offset = lineStartOffsetForLine(editorValue, pendingReviewTarget.line);
+    const targetLine = Math.max(1, Math.floor(pendingReviewTarget.line ?? 1));
+    const computedLineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
+    const lineHeight = Number.isFinite(computedLineHeight) ? computedLineHeight : 20;
+
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(offset, offset);
+    textarea.scrollTop = Math.max(0, (targetLine - 1) * lineHeight - textarea.clientHeight * 0.25);
+    setPendingReviewTarget(null);
+  }, [activeFile, editorValue, pendingReviewTarget, viewMode]);
 
   useEffect(() => {
     if (!config?.rootExists || !workspaceIndex || normalizedQuery.length < contentSearchMinLength) {
@@ -316,6 +373,8 @@ function App() {
       setDocReview(null);
       setSearchError("");
       setReviewError("");
+      setReviewSeverityFilter("all");
+      setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setSelectedPath("");
       setActiveFile(null);
@@ -341,6 +400,8 @@ function App() {
       setDocReview(null);
       setSearchError("");
       setReviewError("");
+      setReviewSeverityFilter("all");
+      setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setVisibleNoteCount(initialVisibleNoteCount);
       setCreateForm((current) => ({
@@ -498,26 +559,30 @@ function App() {
     }
   }
 
-  function openNote(note: NoteFilePayload["note"], nextRepoFilter?: string) {
-    if (note.rootRelativePath === selectedPath) {
-      setMobilePane("read");
-      return;
+  function openNote(note: NoteFilePayload["note"], options: OpenNoteOptions = {}) {
+    const isSameNote = note.rootRelativePath === selectedPath;
+
+    if (!isSameNote && !confirmDiscardDraft()) {
+      return false;
     }
 
-    if (!confirmDiscardDraft()) {
-      return;
-    }
-
-    if (nextRepoFilter) {
-      setRepoFilter(nextRepoFilter);
+    if (options.repoName && options.repoName !== repoFilter) {
+      setRepoFilter(options.repoName);
       setDocSearch(null);
-      setDocReview(null);
       setSearchError("");
-      setReviewError("");
       setVisibleNoteCount(initialVisibleNoteCount);
+      if (!options.preserveReview) {
+        setDocReview(null);
+        setReviewError("");
+        setReviewVisibleIssueCount(initialReviewIssueCount);
+      }
     }
-    setSelectedPath(note.rootRelativePath);
+
+    if (!isSameNote) {
+      setSelectedPath(note.rootRelativePath);
+    }
     setMobilePane("read");
+    return true;
   }
 
   function selectNote(note: NoteFilePayload["note"]) {
@@ -530,6 +595,8 @@ function App() {
     setDocReview(null);
     setSearchError("");
     setReviewError("");
+    setReviewSeverityFilter("all");
+    setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
   }
@@ -540,6 +607,8 @@ function App() {
     setDocReview(null);
     setSearchError("");
     setReviewError("");
+    setReviewSeverityFilter("all");
+    setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
   }
@@ -551,6 +620,8 @@ function App() {
   function clearDocReview() {
     setDocReview(null);
     setReviewError("");
+    setReviewSeverityFilter("all");
+    setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
     setIsMoreOpen(false);
     setNotice("Review cleared.");
@@ -573,7 +644,13 @@ function App() {
       return;
     }
 
-    openNote(issueNote, issue.repoName);
+    if (!openNote(issueNote, { repoName: issue.repoName, preserveReview: true })) {
+      return;
+    }
+
+    setViewMode((current) => (current === "split" ? "split" : "edit"));
+    setPendingReviewTarget({ rootRelativePath: issue.rootRelativePath, line: issue.line });
+    setNotice(issue.line ? `Opened ${issue.title} at line ${issue.line}.` : `Opened ${issue.title}.`);
   }
 
   return (
@@ -888,9 +965,57 @@ function App() {
                     </span>
                   </div>
 
+                  {docReview.issueCount > 0 && (
+                    <div className="review-filters">
+                      <label>
+                        <span>Severity</span>
+                        <select
+                          value={reviewSeverityFilter}
+                          onChange={(event) => {
+                            setReviewSeverityFilter(event.target.value as ReviewSeverityFilter);
+                            setReviewVisibleIssueCount(initialReviewIssueCount);
+                          }}
+                        >
+                          <option value="all">All severity</option>
+                          {reviewSeverityOptions.map((severity) => (
+                            <option key={severity} value={severity}>
+                              {severity}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Type</span>
+                        <select
+                          value={reviewCategoryFilter}
+                          onChange={(event) => {
+                            setReviewCategoryFilter(event.target.value as ReviewCategoryFilter);
+                            setReviewVisibleIssueCount(initialReviewIssueCount);
+                          }}
+                        >
+                          <option value="all">All types</option>
+                          {reviewCategoryOptions.map((category) => (
+                            <option key={category} value={category}>
+                              {reviewCategoryLabel(category)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <strong>
+                        {filteredReviewIssues.length === docReview.returnedIssueCount
+                          ? `${docReview.returnedIssueCount} returned`
+                          : `${filteredReviewIssues.length} of ${docReview.returnedIssueCount}`}
+                      </strong>
+                    </div>
+                  )}
+
                   {docReview.issueCount === 0 ? (
                     <div className="review-message">
                       <span>No broken local links, unresolved markers, empty docs, stale docs, duplicate titles, or oversized files found.</span>
+                    </div>
+                  ) : filteredReviewIssues.length === 0 ? (
+                    <div className="review-message">
+                      <span>No review issues match these filters.</span>
                     </div>
                   ) : (
                     <div className="review-issues">
@@ -918,16 +1043,16 @@ function App() {
                           type="button"
                           onClick={() =>
                             setReviewVisibleIssueCount((current) =>
-                              nextReviewIssueLimit(current, docReview.returnedIssueCount),
+                              nextReviewIssueLimit(current, filteredReviewIssues.length),
                             )
                           }
                         >
-                          Show {Math.min(initialReviewIssueCount, docReview.returnedIssueCount - visibleReviewIssues.length)} more issues
+                          Show {Math.min(initialReviewIssueCount, filteredReviewIssues.length - visibleReviewIssues.length)} more issues
                         </button>
                       )}
                       {!canShowMoreReviewIssues && docReview.issueCount > docReview.returnedIssueCount && (
                         <div className="review-more">
-                          Showing the first {docReview.returnedIssueCount} of {docReview.issueCount} issues. Narrow the scope to inspect more.
+                          Review returned the first {docReview.returnedIssueCount} of {docReview.issueCount} issues. Narrow the scope to inspect more.
                         </div>
                       )}
                     </div>
@@ -1043,6 +1168,7 @@ function App() {
                 )}
                 {viewMode !== "preview" && (
                   <textarea
+                    ref={editorRef}
                     className="editor"
                     value={editorValue}
                     onChange={(event) => setEditorValue(event.target.value)}

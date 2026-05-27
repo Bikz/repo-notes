@@ -1,6 +1,8 @@
-import type { NoteSummary, RepoSummary } from "../shared/types";
+import type { DocReviewCategory, DocReviewIssue, DocReviewSeverity, NoteSummary, RepoSummary } from "../shared/types";
 
 export type NoteSortMode = "path" | "updated";
+export type ReviewSeverityFilter = DocReviewSeverity | "all";
+export type ReviewCategoryFilter = DocReviewCategory | "all";
 
 export interface NoteGroup {
   title: string;
@@ -53,6 +55,38 @@ export function resolvePreferredCreateRepoName(repoFilter: string, selectedRepoN
 
 export function nextReviewIssueLimit(currentLimit: number, returnedIssueCount: number) {
   return Math.min(returnedIssueCount, currentLimit + initialReviewIssueCount);
+}
+
+export function filterReviewIssues(
+  issues: DocReviewIssue[],
+  severityFilter: ReviewSeverityFilter,
+  categoryFilter: ReviewCategoryFilter,
+) {
+  return issues.filter((issue) => {
+    const severityMatches = severityFilter === "all" || issue.severity === severityFilter;
+    const categoryMatches = categoryFilter === "all" || issue.category === categoryFilter;
+    return severityMatches && categoryMatches;
+  });
+}
+
+export function lineStartOffsetForLine(content: string, line?: number) {
+  if (line === undefined || !Number.isFinite(line) || line <= 1) {
+    return 0;
+  }
+
+  const targetLine = Math.floor(line);
+  let currentLine = 1;
+
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === "\n") {
+      currentLine += 1;
+      if (currentLine === targetLine) {
+        return index + 1;
+      }
+    }
+  }
+
+  return content.length;
 }
 
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {

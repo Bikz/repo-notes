@@ -60,6 +60,8 @@ test("reviewWorkspaceDocs reports local doc health issues without returning file
   expect(review.issues.map((issue) => issue.category)).toContain("duplicate-title");
   expect(review.issues.map((issue) => issue.category)).toContain("stale-doc");
   expect(review.issues.map((issue) => issue.category)).toContain("large-file");
+  expect(review.issues.find((issue) => issue.category === "broken-link")).toMatchObject({ line: 3 });
+  expect(review.issues.find((issue) => issue.category === "todo-marker")).toMatchObject({ line: 4 });
   expect(review.issues.some((issue) => issue.target === "alpha/docs/ok.md")).toBe(false);
   expect(review.issues.some((issue) => issue.target?.includes("https://"))).toBe(false);
   expect(JSON.stringify(review)).not.toContain("tighten launch copy");

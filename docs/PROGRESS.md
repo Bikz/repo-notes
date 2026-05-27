@@ -93,3 +93,8 @@
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-content-search.png`
 - Content search validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
+- Continued the product-team docs review workflow by adding severity/type filters to the review panel, keeping the repo-only left rail and grouped middle pane intact.
+- Added direct review finding navigation: clicking a review issue opens the note, preserves the review panel, switches to an editor-visible mode, focuses the editor, and jumps to the reported line when one is available.
+- Added pure helper coverage for review filtering and line-to-textarea offset mapping, plus server coverage that TODO and broken-link findings carry line numbers.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-review-filters-line-jump.png`
