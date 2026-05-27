@@ -30,6 +30,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Use editor-grade keyboard shortcuts for save, search, new note, and dismissing transient panels.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
+- Warm an in-memory content cache after indexing so repeated docs searches avoid rereading every file.
 - Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
 - Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.
 - Keep all file history in the repositories that already own those files.
@@ -81,6 +82,8 @@ The configured root path is stored at:
 Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache.json` so the app can open quickly without rewalking every repository before showing search results. The cache stores paths and file metadata, not note contents.
 
 Content search runs on demand against the selected repository or all indexed repositories. Search responses can include a bounded line-level snippet for matching local content, but snippets are not written to the metadata cache.
+
+To keep follow-up searches fast, Repo Notes opportunistically warms an in-memory content cache after indexing. The cache is scoped to the running local API process, validates symlink safety plus file size and modified time before reuse, and is invalidated when Repo Notes edits or creates a note. It is never written to disk.
 
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
 

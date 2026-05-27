@@ -4,7 +4,7 @@ import { resolvePreviewAsset } from "./assets";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { getWorkspaceIndex } from "./index-cache";
 import { reviewWorkspaceDocs } from "./review";
-import { searchWorkspaceDocs } from "./search";
+import { queueSearchContentCacheWarmup, searchWorkspaceDocs } from "./search";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../shared/types";
 
 const port = Number(process.env.PORT ?? 4177);
@@ -61,12 +61,12 @@ async function handleApiRequest(request: Request, url: URL) {
     if (!config.rootExists) {
       throw new HttpError("Workspace root does not exist.", 400);
     }
-    return jsonResponse(
-      await getWorkspaceIndex(config.rootPath, {
-        backgroundRefresh: url.searchParams.get("background") === "1",
-        force: url.searchParams.get("force") === "1",
-      }),
-    );
+    const index = await getWorkspaceIndex(config.rootPath, {
+      backgroundRefresh: url.searchParams.get("background") === "1",
+      force: url.searchParams.get("force") === "1",
+    });
+    queueSearchContentCacheWarmup(config.rootPath, index);
+    return jsonResponse(index);
   }
 
   if (request.method === "GET" && url.pathname === "/api/review") {

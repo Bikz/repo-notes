@@ -11,6 +11,7 @@ import {
   shouldSkipWorkspaceChildDirectory,
   toRootRelativePath,
 } from "./safety";
+import { invalidateSearchContentCache } from "./search";
 
 export async function readNoteFile(rootPath: string, rootRelativePath: string): Promise<NoteFilePayload> {
   const absolutePath = resolveWorkspaceFilePath(rootPath, rootRelativePath);
@@ -48,6 +49,7 @@ export async function writeNoteFile(
   }
 
   await writeFile(absolutePath, request.content, "utf8");
+  invalidateSearchContentCache(rootPath, request.rootRelativePath);
   return readNoteFile(rootPath, request.rootRelativePath);
 }
 
@@ -79,6 +81,7 @@ export async function createNoteFile(
     throw error;
   });
 
+  invalidateSearchContentCache(root, rootRelativePath);
   return readNoteFile(root, rootRelativePath);
 }
 

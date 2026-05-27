@@ -61,6 +61,8 @@ The cache stores repository names, relative note paths, sizes, and modification 
 
 Docs search is an on-demand workflow, separate from indexing, because it may read document bodies. It uses the current index as scope, keeps reads concurrency-limited, checks symlink safety before content reads, and returns ranked note metadata with optional bounded line-level snippets. Search snippets are response-only and are not written to the metadata cache.
 
+After an index response, the API queues a best-effort in-memory search-content warmup. That cache is keyed by workspace root, root-relative path, file size, and modified time. It lets follow-up searches reuse safe, current note bodies without rereading every file, but it is process-local only and never persisted to `~/.repo-notes`. Before a cached body is reused, the server still checks the workspace path for symlinks and stats the file so missing, changed, or unsafe paths are skipped or refreshed.
+
 ## Docs Review
 
 Docs review is an on-demand workflow, separate from indexing, because it reads document bodies to inspect markers and Markdown links. The review scanner uses the current index as its scope, keeps reads concurrency-limited, ignores remote links and anchors-only links, checks local Markdown targets with workspace-relative safety resolution, and returns a capped list of findings.

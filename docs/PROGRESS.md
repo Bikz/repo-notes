@@ -135,3 +135,10 @@
 - Browser proof used a disposable workspace:
   - `output/playwright/repo-notes-session-restore.png`
 - Session restore validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, Playwright reload proof, stale-note deletion proof, and a fresh Playwright console-error check.
+- Continued search responsiveness work after product feedback that docs search should feel instant for simple local files.
+- Added a process-local search content cache that warms after indexing, reuses current safe note bodies for follow-up searches, refreshes when file size or modified time changes, prunes paths outside the current index, and invalidates notes edited or created through Repo Notes.
+- Preserved the storage boundary: note bodies remain out of the metadata index cache, localStorage, tests, logs, and docs review payloads.
+- Measured the current `/Users/torva/Developer` workspace at 23 repos and 4280 notes: a warmed full-workspace content query for `roadmap` returned 142 matches in about 57 ms after a 157 ms warmup, compared with about 274 ms cold.
+- Browser proof used a disposable workspace and verified a body-only search match plus clean console:
+  - `output/playwright/repo-notes-search-cache-proof.png`
+- Search cache validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, a current-workspace timing probe, and Playwright browser proof.
