@@ -1,11 +1,18 @@
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
-import { createNoteFile, moveNoteFile, NoteWriteConflictError, readNoteFile, writeNoteFile } from "./file-store";
+import {
+  createNoteFile,
+  deleteNoteFile,
+  moveNoteFile,
+  NoteWriteConflictError,
+  readNoteFile,
+  writeNoteFile,
+} from "./file-store";
 import { resolvePreviewAsset } from "./assets";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { getWorkspaceIndex } from "./index-cache";
 import { reviewWorkspaceDocs } from "./review";
 import { queueSearchContentCacheWarmup, searchWorkspaceDocs } from "./search";
-import type { CreateNoteRequest, MoveNoteRequest, UpdateNoteRequest } from "../shared/types";
+import type { CreateNoteRequest, DeleteNoteRequest, MoveNoteRequest, UpdateNoteRequest } from "../shared/types";
 
 const port = Number(process.env.PORT ?? 4177);
 const distPath = resolve(process.cwd(), "dist");
@@ -190,6 +197,21 @@ async function handleApiRequest(request: Request, url: URL) {
     );
   }
 
+  if (request.method === "DELETE" && url.pathname === "/api/files") {
+    const body = (await request.json()) as Partial<DeleteNoteRequest>;
+    if (typeof body.rootRelativePath !== "string" || typeof body.expectedUpdatedAtMs !== "number") {
+      throw new HttpError("rootRelativePath and expectedUpdatedAtMs are required.", 400);
+    }
+
+    const config = await loadWorkspaceConfig();
+    return jsonResponse(
+      await deleteNoteFile(config.rootPath, {
+        rootRelativePath: body.rootRelativePath,
+        expectedUpdatedAtMs: body.expectedUpdatedAtMs,
+      }),
+    );
+  }
+
   throw new HttpError("API route not found.", 404);
 }
 
@@ -240,7 +262,7 @@ function jsonResponse(body: unknown, status = 200) {
 function corsHeaders() {
   return {
     "access-control-allow-origin": "http://127.0.0.1:5173",
-    "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type",
   };
 }

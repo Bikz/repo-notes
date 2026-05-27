@@ -2,7 +2,7 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createNoteFile, moveNoteFile, readNoteFile, writeNoteFile } from "./file-store";
+import { createNoteFile, deleteNoteFile, moveNoteFile, readNoteFile, writeNoteFile } from "./file-store";
 
 const roots: string[] = [];
 
@@ -116,6 +116,44 @@ test("moveNoteFile rejects stale moves and existing destinations", async () => {
   ).rejects.toThrow("already exists");
   await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Plan\n");
   await expect(readFile(join(root, "alpha", "notes", "existing.md"), "utf8")).resolves.toBe("# Existing\n");
+});
+
+test("deleteNoteFile removes an existing note with current disk state", async () => {
+  const root = await createTempWorkspace();
+  const before = await readNoteFile(root, "alpha/docs/plan.md");
+
+  const payload = await deleteNoteFile(root, {
+    rootRelativePath: "alpha/docs/plan.md",
+    expectedUpdatedAtMs: before.note.updatedAtMs,
+  });
+
+  expect(payload.note.rootRelativePath).toBe("alpha/docs/plan.md");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).rejects.toThrow();
+  await expect(readNoteFile(root, "alpha/docs/plan.md")).rejects.toThrow();
+});
+
+test("deleteNoteFile rejects stale and symlinked notes without removing targets", async () => {
+  const root = await createTempWorkspace();
+  const outsideRoot = await mkdtemp(join(tmpdir(), "repo-notes-delete-outside-"));
+  roots.push(outsideRoot);
+  const outsideNotePath = join(outsideRoot, "secret.md");
+  await writeFile(outsideNotePath, "# Outside\n");
+  await symlink(outsideNotePath, join(root, "alpha", "docs", "outside.md"));
+
+  await expect(
+    deleteNoteFile(root, {
+      rootRelativePath: "alpha/docs/plan.md",
+      expectedUpdatedAtMs: 0,
+    }),
+  ).rejects.toThrow("changed on disk");
+  await expect(
+    deleteNoteFile(root, {
+      rootRelativePath: "alpha/docs/outside.md",
+      expectedUpdatedAtMs: 0,
+    }),
+  ).rejects.toThrow("symlink");
+  await expect(readFile(join(root, "alpha", "docs", "plan.md"), "utf8")).resolves.toBe("# Plan\n");
+  await expect(readFile(outsideNotePath, "utf8")).resolves.toBe("# Outside\n");
 });
 
 test("file operations reject traversal and unsupported extensions", async () => {

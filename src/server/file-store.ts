@@ -1,6 +1,14 @@
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
-import type { CreateNoteRequest, MoveNoteRequest, NoteFilePayload, NoteSummary, UpdateNoteRequest } from "../shared/types";
+import type {
+  CreateNoteRequest,
+  DeleteNotePayload,
+  DeleteNoteRequest,
+  MoveNoteRequest,
+  NoteFilePayload,
+  NoteSummary,
+  UpdateNoteRequest,
+} from "../shared/types";
 import {
   assertAllowedNotePath,
   assertNoSymlinkInWorkspacePath,
@@ -125,6 +133,28 @@ export async function moveNoteFile(rootPath: string, request: MoveNoteRequest): 
   invalidateSearchContentCache(root, request.rootRelativePath);
   invalidateSearchContentCache(root, destinationRootRelativePath);
   return readNoteFile(root, destinationRootRelativePath);
+}
+
+export async function deleteNoteFile(rootPath: string, request: DeleteNoteRequest): Promise<DeleteNotePayload> {
+  const root = resolveWorkspaceRoot(rootPath);
+  const absolutePath = resolveWorkspaceFilePath(root, request.rootRelativePath);
+  assertSupportedNoteExtension(request.rootRelativePath);
+  assertAllowedNotePath(request.rootRelativePath);
+  await assertNoSymlinkInWorkspacePath(root, request.rootRelativePath);
+
+  const before = await stat(absolutePath);
+  if (!before.isFile()) {
+    throw new Error("Requested note path is not a file.");
+  }
+
+  if (!sameTimestamp(before.mtimeMs, request.expectedUpdatedAtMs)) {
+    throw new NoteWriteConflictError();
+  }
+
+  const note = noteFromStat(request.rootRelativePath, before);
+  await unlink(absolutePath);
+  invalidateSearchContentCache(root, request.rootRelativePath);
+  return { note };
 }
 
 function noteFromStat(rootRelativePath: string, fileStat: Awaited<ReturnType<typeof stat>>): NoteSummary {

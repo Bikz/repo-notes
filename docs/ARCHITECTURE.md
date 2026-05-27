@@ -20,7 +20,7 @@ The workspace root must be an absolute path. File operations accept paths relati
 
 The scanner treats each direct child directory under the workspace root as a repository-like project. It skips generated, hidden, and dependency directories during recursive scans, with narrow exceptions for `.github` and `.well-known`.
 
-Before file contents are read, written, created, or reviewed, Repo Notes checks every existing path segment in the note path with `lstat` and rejects symlinks. This keeps a repo-relative note path from escaping the selected workspace or selected repository through a symlinked file or directory.
+Before file contents are read, written, moved, deleted, created, or reviewed, Repo Notes checks every existing path segment in the note path with `lstat` and rejects symlinks. This keeps a repo-relative note path from escaping the selected workspace or selected repository through a symlinked file or directory.
 
 ## API
 
@@ -36,6 +36,7 @@ Before file contents are read, written, created, or reviewed, Repo Notes checks 
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
 - `PUT /api/files`: updates an existing note file in place.
 - `PATCH /api/files`: renames or moves an existing note within its current repository.
+- `DELETE /api/files`: deletes an existing note file after checking current disk state.
 - `POST /api/files`: creates a new supported note file inside a selected repository without overwriting.
 
 ## Rendering
@@ -79,3 +80,7 @@ Local preview image sources are rewritten to `/api/assets?note=<rootRelativePath
 ## Move/Rename
 
 Moving a note is intentionally scoped to the note's current repository. The API validates the source path as a supported, non-symlinked note file, checks the loaded modified time to avoid moving stale disk state, validates the destination as a supported repo-relative note path, rejects ignored/generated directories, refuses sibling-repository traversal, checks destination parents for symlinks, and refuses to overwrite an existing file. After a successful move, the in-memory search-content cache is invalidated for both old and new paths, and the client refreshes the metadata index from disk.
+
+## Delete
+
+Deleting a note uses the same source-path checks as reading and writing: supported note extension, ignored-directory rejection, symlink rejection, file-only validation, and a modified-time conflict check. The client confirms the destructive action first, clears stale search and review context after success, invalidates the deleted file from the in-memory search-content cache, and refreshes the metadata index so removed docs disappear from the browse surface.

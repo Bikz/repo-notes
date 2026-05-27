@@ -572,6 +572,14 @@ button {
   background: #2a2a2d;
 }
 
+.topbar-menu button.is-danger {
+  color: #ffb4aa;
+}
+
+.topbar-menu button.is-danger:hover:not(:disabled) {
+  background: rgba(255, 93, 78, 0.13);
+}
+
 .topbar-menu button:disabled {
   cursor: not-allowed;
   opacity: 0.46;

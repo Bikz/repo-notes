@@ -2,6 +2,8 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
+  DeleteNotePayload,
+  DeleteNoteRequest,
   DocReviewPayload,
   DocSearchPayload,
   MoveNoteRequest,
@@ -112,7 +114,25 @@ try {
   const createdContent = await readFile(join(workspaceRoot, "alpha", "notes", "new-smoke-note.md"), "utf8");
   assert(createdContent === "# New smoke note\n", "created file should be persisted on disk");
 
-  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, and created notes in a disposable workspace.");
+  const deletedPayload = await requestJson<DeleteNotePayload>(`${baseUrl}/api/files`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      rootRelativePath: "alpha/notes/new-smoke-note.md",
+      expectedUpdatedAtMs: createdPayload.note.updatedAtMs,
+    } satisfies DeleteNoteRequest),
+  });
+  assert(deletedPayload.note.rootRelativePath === "alpha/notes/new-smoke-note.md", "deleted note path should match");
+  await assertRejects(
+    requestJson<NoteFilePayload>(`${baseUrl}/api/files?path=${encodeURIComponent("alpha/notes/new-smoke-note.md")}`),
+    "ENOENT",
+  );
+  const deletedIndex = await requestJson<WorkspaceIndex>(`${baseUrl}/api/index?force=1`);
+  assert(
+    !deletedIndex.notes.some((note) => note.rootRelativePath === "alpha/notes/new-smoke-note.md"),
+    "deleted note should be removed from the index",
+  );
+
+  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, created, and deleted notes in a disposable workspace.");
 } finally {
   server.kill();
   await server.exited.catch(() => undefined);

@@ -122,3 +122,12 @@ export interface MoveNoteRequest {
   repoRelativePath: string;
   expectedUpdatedAtMs: number;
 }
+
+export interface DeleteNoteRequest {
+  rootRelativePath: string;
+  expectedUpdatedAtMs: number;
+}
+
+export interface DeleteNotePayload {
+  note: NoteSummary;
+}

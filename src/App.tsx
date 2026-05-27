@@ -17,6 +17,7 @@ import {
   Save,
   Search,
   SquarePen,
+  Trash2,
   X,
 } from "lucide-react";
 import { marked } from "marked";
@@ -67,6 +68,8 @@ import type {
   DocReviewIssue,
   DocReviewPayload,
   DocReviewSeverity,
+  DeleteNotePayload,
+  DeleteNoteRequest,
   MoveNoteRequest,
   NoteFilePayload,
   UpdateNoteRequest,
@@ -152,6 +155,7 @@ function App() {
   const [isCreating, setIsCreating] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -778,6 +782,61 @@ function App() {
     }
   }
 
+  async function deleteSelectedNote() {
+    if (!activeFile || !selectedNote) {
+      return;
+    }
+
+    setIsMoreOpen(false);
+    setError("");
+    setNotice("");
+
+    if (isDirty) {
+      setError("Save or discard changes before deleting this note.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedNote.repoRelativePath} from ${selectedNote.repoName}? This removes the local file. Use Git to recover it if needed.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const deletedTitle = selectedNote.title;
+    const body: DeleteNoteRequest = {
+      rootRelativePath: activeFile.note.rootRelativePath,
+      expectedUpdatedAtMs: activeFile.note.updatedAtMs,
+    };
+
+    try {
+      await requestJson<DeleteNotePayload>("/api/files", {
+        method: "DELETE",
+        body: JSON.stringify(body),
+      });
+      clearActiveNote();
+      setDocSearch(null);
+      setDocReview(null);
+      setSearchError("");
+      setReviewError("");
+      setReviewSeverityFilter("all");
+      setReviewCategoryFilter("all");
+      setReviewVisibleIssueCount(initialReviewIssueCount);
+      setVisibleNoteCount(initialVisibleNoteCount);
+      setMobilePane("browse");
+      setNotice(`Deleted ${deletedTitle}.`);
+      await refreshIndex({ force: true, quiet: true });
+    } catch (nextError) {
+      if (isSaveConflictError(nextError)) {
+        setSaveConflictPath(activeFile.note.rootRelativePath);
+      }
+      setError(messageForError(nextError));
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   async function runDocReview() {
     setIsReviewing(true);
     setReviewError("");
@@ -1206,6 +1265,16 @@ function App() {
                 >
                   <FilePenLine size={15} />
                   <span>Rename or move</span>
+                </button>
+                <button
+                  className="is-danger"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void deleteSelectedNote()}
+                  disabled={!selectedNote || isDirty || isDeleting}
+                >
+                  {isDeleting ? <Loader2 className="spin" size={15} /> : <Trash2 size={15} />}
+                  <span>Delete note</span>
                 </button>
                 <button
                   type="button"

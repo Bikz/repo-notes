@@ -149,3 +149,10 @@
 - Browser proof used a disposable workspace, moved `alpha/docs/move-me.md` to `alpha/docs/renamed/moved-note.md`, verified the old API path returned 404, reloaded, and confirmed the selected reader stayed on the new path with a clean console:
   - `output/playwright/repo-notes-move-note.png`
 - Move/rename validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.
+- Continued the note-organization workflow by adding safe deletion for obsolete or duplicate docs.
+- Added timestamp-guarded `DELETE /api/files` support with supported-extension checks, ignored-directory rejection, symlink rejection, file-only validation, and search-cache invalidation.
+- Added a confirmed More-menu `Delete note` action in the dark Notes-style shell. It is disabled for dirty notes, clears stale search/review context after a successful delete, returns the user to Browse, and refreshes the index quietly.
+- Extended smoke coverage to create and then delete a disposable note, verify the deleted path returns 404, and confirm the forced index no longer includes it.
+- Browser proof used a disposable workspace, deleted `alpha/docs/delete-me.md` through the More menu, verified the old API path returned 404, and confirmed the list/reader cleared with a clean console:
+  - `output/playwright/repo-notes-delete-note.png`
+- Delete validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
