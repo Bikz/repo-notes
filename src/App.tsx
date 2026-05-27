@@ -460,8 +460,8 @@ function App() {
             <span className="traffic traffic-zoom" />
           </div>
           <div className="topbar-title">
-            <p className="eyebrow">DevShelf</p>
-            <h1>Repository notes</h1>
+            <p className="eyebrow">Local docs</p>
+            <h1>Repo Notes</h1>
           </div>
           <div className="topbar-actions">
             <button className="round-button" type="button" aria-label="Toggle sources">
@@ -632,7 +632,7 @@ function App() {
               <div className="empty-state">
                 <Loader2 className="spin" size={20} />
                 <strong>{isBooting ? "Opening workspace..." : "Indexing workspace..."}</strong>
-                <span>DevShelf is preparing the local repository index.</span>
+                <span>Repo Notes is preparing the local repository index.</span>
               </div>
             )}
             {!isBooting && noteGroups.map((group) => (
@@ -744,7 +744,7 @@ function App() {
             >
               <div className="drawer-header">
                 <div>
-                  <p className="eyebrow">DevShelf</p>
+                  <p className="eyebrow">Repo Notes</p>
                   <h2 id="create-note-title">New note</h2>
                 </div>
                 <button className="round-button" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Close">

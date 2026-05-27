@@ -34,7 +34,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`DevShelf listening on http://127.0.0.1:${server.port}`);
+console.log(`Repo Notes listening on http://127.0.0.1:${server.port}`);
 
 async function handleApiRequest(request: Request, url: URL) {
   if (request.method === "GET" && url.pathname === "/api/health") {

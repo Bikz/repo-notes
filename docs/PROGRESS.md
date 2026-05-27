@@ -9,42 +9,44 @@
 - Added a Bun local API and validated `/api/health`, `/api/config`, and `/api/index` against `/Users/torva/Developer`.
 - Tightened scanner ignores after browser proof exposed generated hidden artifacts; current verified index is 20 child directories and 2946 supported note files.
 - Verified the React app in Playwright on desktop and mobile viewports; screenshots are in `output/playwright/`.
-- Continued the DevShelf implementation from the existing scaffold and screenshots instead of restarting discovery.
+- Continued the Repo Notes implementation from the existing scaffold and screenshots instead of restarting discovery.
 - Hardened create-file safety so new files cannot escape the selected repository into a sibling repo, and applied ignored/generated/hidden directory policy to read, write, create, and root-level indexing.
 - Added `REPO_NOTES_CONFIG_PATH` support plus `bun run smoke` so API end-to-end verification can run against a disposable workspace without touching the user's real repository root.
-- Reworked the UI into a denser DevShelf workbench: creation now opens from a drawer, the sidebar focuses on workspace/filter/sort controls, note rows show kind/size/update metadata, dirty edits are guarded, and mobile has explicit Browse/Read panes.
+- Reworked the UI into a denser Repo Notes workbench: creation now opens from a drawer, the sidebar focuses on workspace/filter/sort controls, note rows show kind/size/update metadata, dirty edits are guarded, and mobile has explicit Browse/Read panes.
 - Browser-verified a disposable UI flow for root switching, selecting a note, editing and saving to disk, creating from the drawer, and mobile Browse/Read navigation. Fresh screenshots:
-  - `output/playwright/devshelf-desktop.png`
-  - `output/playwright/devshelf-desktop-browser-smoke.png`
-  - `output/playwright/devshelf-mobile-browse.png`
+  - `output/playwright/repo-notes-desktop.png`
+  - `output/playwright/repo-notes-desktop-browser-smoke.png`
+  - `output/playwright/repo-notes-mobile-browse.png`
 - Final validation passed: `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, and a workspace-config restore check for `/Users/torva/Developer`.
 - Started an Apple Notes-inspired visual overhaul using the provided macOS Notes screenshot and generated direction sheet. Selected the hybrid repository-notes direction: dark translucent source list, grouped notes list, warm editor surface, and macOS-style toolbar controls while preserving repository/workspace safety controls.
 - Implemented the Apple Notes-inspired overhaul: window chrome, dark source list, date-grouped note list, gold selected note treatment, full-width preview-first reader, and mobile Browse/Read modes styled after the desktop direction.
 - Preserved the generated direction sheet at `output/design/apple-notes-direction-sheet.png`.
 - Browser proof artifacts for the overhaul:
-  - `output/playwright/devshelf-apple-notes-desktop.png`
-  - `output/playwright/devshelf-apple-notes-selected.png`
-  - `output/playwright/devshelf-apple-notes-mobile-read.png`
-  - `output/playwright/devshelf-apple-notes-mobile-browse.png`
+  - `output/playwright/repo-notes-apple-notes-desktop.png`
+  - `output/playwright/repo-notes-apple-notes-selected.png`
+  - `output/playwright/repo-notes-apple-notes-mobile-read.png`
+  - `output/playwright/repo-notes-apple-notes-mobile-browse.png`
 - Tightened the visual direction to "dark notes" using the Codex dark workspace screenshot as inspiration: near-black app chrome, neutral grey active states, quieter status bars, and only restrained warm accenting.
 - Browser proof artifacts for the dark-notes refinement:
-  - `output/playwright/devshelf-dark-notes-selected.png`
-  - `output/playwright/devshelf-dark-notes-mobile-read.png`
-  - `output/playwright/devshelf-dark-notes-mobile-browse.png`
+  - `output/playwright/repo-notes-dark-notes-selected.png`
+  - `output/playwright/repo-notes-dark-notes-mobile-read.png`
+  - `output/playwright/repo-notes-dark-notes-mobile-browse.png`
 - Added stale-save protection so browser edits include the loaded file timestamp and server writes return a conflict instead of overwriting a note changed on disk.
 - Final dark-notes validation passed: `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, Playwright console-error check, and a disposable browser UI edit/save round-trip.
 
 ## 2026-05-27
 
-- Explored product-team documentation directions for DevShelf's next design-system pass, focused on file viewing, switching, review, and structured docs workflows.
-- Preserved the generated direction sheet at `output/design/devshelf-product-docs-directions.png`.
-- Changed direction based on product feedback: the primary experience should not expose root/path boot setup first; DevShelf should open as an immediate repository/document hierarchy.
+- Explored product-team documentation directions for Repo Notes' next design-system pass, focused on file viewing, switching, review, and structured docs workflows.
+- Preserved the generated direction sheet at `output/design/repo-notes-product-docs-directions.png`.
+- Changed direction based on product feedback: the primary experience should not expose root/path boot setup first; Repo Notes should open as an immediate repository/document hierarchy.
 - Added a reusable repo hierarchy builder and replaced the sidebar setup/filter stack with a repo-first source tree, keeping workspace root configuration tucked into a compact footer.
 - Browser proof surfaced full-workspace indexing exceeding Bun's default request idle timeout, so the local API timeout was raised to keep large hierarchy scans from proxying as 502s.
 - Tightened generated-directory ignores for hierarchy quality, including artifact/output/tmp and Python virtual environment folders that were polluting the document tree.
 - Preserved save/create status messages through quiet index refreshes and hardened long repo-name truncation in the list header.
 - Validated the hierarchy-first pass with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
 - Browser proof artifacts for the hierarchy-first pass:
-  - `output/playwright/devshelf-repo-hierarchy-expanded.png`
-  - `output/playwright/devshelf-repo-hierarchy-selected.png`
-  - `output/playwright/devshelf-repo-hierarchy-mobile-browse.png`
+  - `output/playwright/repo-notes-repo-hierarchy-expanded.png`
+  - `output/playwright/repo-notes-repo-hierarchy-selected.png`
+  - `output/playwright/repo-notes-repo-hierarchy-mobile-browse.png`
+- Renamed product-facing copy to Repo Notes across the app shell, document title, README, architecture notes, server startup log, and progress history while keeping `repo-notes` as the technical slug/config path.
+- Brand rename validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check. Browser proof: `output/playwright/repo-notes-brand-rename.png`.
