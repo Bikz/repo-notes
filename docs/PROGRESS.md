@@ -87,3 +87,9 @@
   - `output/playwright/repo-notes-review-show-more.png`
   - `output/playwright/repo-notes-review-expanded.png`
 - Current-repo creation, review paging, and symlink-boundary validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
+- Added content-aware docs search without persisting document bodies in the metadata cache. The new `/api/search` endpoint uses the current index as scope, reads content on demand with bounded concurrency, checks symlink safety before each content read, and returns ranked note metadata with bounded line snippets.
+- Wired the search box into debounced/cancelled local content search while preserving fast metadata fallback, repo scoping, dirty-edit-safe note opening, and mobile Browse/Read behavior.
+- Extended smoke coverage to exercise content search in a disposable workspace.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-content-search.png`
+- Content search validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.

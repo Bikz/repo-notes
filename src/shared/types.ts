@@ -40,6 +40,28 @@ export interface WorkspaceConfig {
   rootExists: boolean;
 }
 
+export type DocSearchMatchKind = "metadata" | "content";
+
+export interface DocSearchResult {
+  note: NoteSummary;
+  matchKind: DocSearchMatchKind;
+  line?: number;
+  snippet?: string;
+}
+
+export interface DocSearchPayload {
+  generatedAtMs: number;
+  query: string;
+  scope: {
+    repoName?: string;
+    label: string;
+  };
+  searchedNotes: number;
+  resultCount: number;
+  returnedResultCount: number;
+  results: DocSearchResult[];
+}
+
 export type DocReviewCategory =
   | "broken-link"
   | "missing-file"

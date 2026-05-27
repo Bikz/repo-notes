@@ -29,6 +29,8 @@ Before file contents are read, written, created, or reviewed, Repo Notes checks 
 - `GET /api/index`: returns repositories plus note metadata from the local metadata cache when available.
 - `GET /api/index?force=1`: rebuilds the metadata index from disk.
 - `GET /api/index?background=1`: returns cached metadata and queues a background rebuild.
+- `GET /api/search?q=<query>`: searches indexed docs by title, path, repo, and file content.
+- `GET /api/search?q=<query>&repo=<repoName>`: searches one repository.
 - `GET /api/review`: reviews all indexed docs for local hygiene issues and returns bounded metadata-only findings.
 - `GET /api/review?repo=<repoName>`: reviews one repository.
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
@@ -54,6 +56,10 @@ Repo Notes also stores a metadata-only index cache next to the config file:
 ```
 
 The cache stores repository names, relative note paths, sizes, and modification times. It does not store note contents.
+
+## Docs Search
+
+Docs search is an on-demand workflow, separate from indexing, because it may read document bodies. It uses the current index as scope, keeps reads concurrency-limited, checks symlink safety before content reads, and returns ranked note metadata with optional bounded line-level snippets. Search snippets are response-only and are not written to the metadata cache.
 
 ## Docs Review
 

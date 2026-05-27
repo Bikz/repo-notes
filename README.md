@@ -18,6 +18,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 
 - Configure a local workspace root.
 - Render notes from every child repository in one searchable surface.
+- Search titles, paths, repository names, and note contents with bounded local snippets.
 - Preview Markdown, plain text, and HTML with client-side sanitization.
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
@@ -70,6 +71,8 @@ The configured root path is stored at:
 ```
 
 Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache.json` so the app can open quickly without rewalking every repository before showing search results. The cache stores paths and file metadata, not note contents.
+
+Content search runs on demand against the selected repository or all indexed repositories. Search responses can include a bounded line-level snippet for matching local content, but snippets are not written to the metadata cache.
 
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
 

@@ -1,7 +1,13 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DocReviewPayload, NoteFilePayload, WorkspaceConfig, WorkspaceIndex } from "../src/shared/types";
+import type {
+  DocReviewPayload,
+  DocSearchPayload,
+  NoteFilePayload,
+  WorkspaceConfig,
+  WorkspaceIndex,
+} from "../src/shared/types";
 
 const root = await mkdtemp(join(tmpdir(), "repo-notes-smoke-"));
 const workspaceRoot = join(root, "workspace");
@@ -44,6 +50,12 @@ try {
   assert(review.notesReviewed === 3, "review should scan indexed notes");
   assert(review.issues.some((issue) => issue.category === "broken-link"), "review should flag broken local links");
   assert(review.issues.some((issue) => issue.category === "todo-marker"), "review should flag unresolved markers");
+
+  const search = await requestJson<DocSearchPayload>(
+    `${baseUrl}/api/search?repo=alpha&q=${encodeURIComponent("follow-up")}`,
+  );
+  assert(search.searchedNotes === 3, "search should scan indexed notes in the selected repo");
+  assert(search.results.some((result) => result.note.rootRelativePath === "alpha/docs/README.md"), "search should find body matches");
 
   const readPayload = await requestJson<NoteFilePayload>(
     `${baseUrl}/api/files?path=${encodeURIComponent("alpha/docs/README.md")}`,

@@ -404,6 +404,22 @@ textarea:focus {
   padding-left: 34px;
 }
 
+.search-status {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  padding: 8px 10px;
+  color: #a8a8ae;
+  background: #19191b;
+  font-size: 11px;
+  font-weight: 690;
+}
+
+.search-status.is-error {
+  color: #ffd8df;
+  background: rgba(130, 28, 47, 0.2);
+}
+
 button {
   font: inherit;
 }
@@ -918,6 +934,7 @@ button {
 .note-title,
 .note-path,
 .note-preview,
+.note-search-snippet,
 .note-meta {
   min-width: 0;
   overflow: hidden;
@@ -936,6 +953,12 @@ button {
   color: rgba(230, 230, 232, 0.58);
   font-family: var(--mono);
   font-size: 11px;
+}
+
+.note-search-snippet {
+  color: #b9b9be;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .note-meta {

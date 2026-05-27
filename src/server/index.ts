@@ -3,6 +3,7 @@ import { createNoteFile, NoteWriteConflictError, readNoteFile, writeNoteFile } f
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { getWorkspaceIndex } from "./index-cache";
 import { reviewWorkspaceDocs } from "./review";
+import { searchWorkspaceDocs } from "./search";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../shared/types";
 
 const port = Number(process.env.PORT ?? 4177);
@@ -80,6 +81,22 @@ async function handleApiRequest(request: Request, url: URL) {
     });
 
     return jsonResponse(await reviewWorkspaceDocs(config.rootPath, index, { repoName }));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/search") {
+    const config = await loadWorkspaceConfig();
+    if (!config.rootExists) {
+      throw new HttpError("Workspace root does not exist.", 400);
+    }
+
+    const query = url.searchParams.get("q") ?? "";
+    const repoName = url.searchParams.get("repo") ?? undefined;
+    const index = await getWorkspaceIndex(config.rootPath, {
+      backgroundRefresh: url.searchParams.get("background") === "1",
+      force: url.searchParams.get("force") === "1",
+    });
+
+    return jsonResponse(await searchWorkspaceDocs(config.rootPath, index, { query, repoName }));
   }
 
   if (request.method === "GET" && url.pathname === "/api/files") {

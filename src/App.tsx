@@ -32,6 +32,8 @@ import {
 } from "./client/note-utils";
 import type {
   CreateNoteRequest,
+  DocSearchPayload,
+  DocSearchResult,
   DocReviewIssue,
   DocReviewPayload,
   NoteFilePayload,
@@ -55,6 +57,7 @@ const emptyCreateForm: CreateFormState = {
   content: "# New note\n\n",
 };
 const initialVisibleNoteCount = 300;
+const contentSearchMinLength = 2;
 
 function App() {
   const [config, setConfig] = useState<WorkspaceConfig | null>(null);
@@ -73,6 +76,7 @@ function App() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
+  const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
   const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
   const [isBooting, setIsBooting] = useState(true);
@@ -80,7 +84,9 @@ function App() {
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -194,9 +200,25 @@ function App() {
     };
   }, [selectedPath]);
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const activeDocSearch = useMemo(() => {
+    if (!docSearch || normalizedQuery.length < contentSearchMinLength || docSearch.query !== normalizedQuery) {
+      return null;
+    }
+
+    const searchRepoFilter = docSearch.scope.repoName ?? "all";
+    return searchRepoFilter === repoFilter ? docSearch : null;
+  }, [docSearch, normalizedQuery, repoFilter]);
+  const searchResultByPath = useMemo(() => {
+    return new Map(activeDocSearch?.results.map((result) => [result.note.rootRelativePath, result]) ?? []);
+  }, [activeDocSearch]);
   const filteredNotes = useMemo(() => {
+    if (activeDocSearch) {
+      return activeDocSearch.results.map((result) => result.note);
+    }
+
     return sortNotes(filterNotes(notes, repoFilter, query), noteSort);
-  }, [notes, noteSort, query, repoFilter]);
+  }, [activeDocSearch, notes, noteSort, query, repoFilter]);
   const visibleNotes = filteredNotes.slice(0, visibleNoteCount);
   const noteGroups = useMemo(() => {
     return noteSort === "updated" ? groupNotesByRecency(visibleNotes) : groupNotesByLocation(visibleNotes, repoFilter);
@@ -237,6 +259,43 @@ function App() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
+  useEffect(() => {
+    if (!config?.rootExists || !workspaceIndex || normalizedQuery.length < contentSearchMinLength) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const searchTimer = window.setTimeout(() => {
+      setIsSearching(true);
+      setSearchError("");
+
+      const params = new URLSearchParams({ q: normalizedQuery });
+      if (repoFilter !== "all") {
+        params.set("repo", repoFilter);
+      }
+
+      void requestJson<DocSearchPayload>(`/api/search?${params.toString()}`, { signal: controller.signal })
+        .then((search) => {
+          setDocSearch(search);
+        })
+        .catch((nextError) => {
+          if (!controller.signal.aborted) {
+            setSearchError(messageForError(nextError));
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setIsSearching(false);
+          }
+        });
+    }, 180);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(searchTimer);
+    };
+  }, [config?.rootExists, normalizedQuery, repoFilter, workspaceIndex]);
+
   async function updateRootPath(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!confirmDiscardDraft()) {
@@ -253,7 +312,9 @@ function App() {
       });
       setConfig(nextConfig);
       setWorkspaceIndex(null);
+      setDocSearch(null);
       setDocReview(null);
+      setSearchError("");
       setReviewError("");
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setSelectedPath("");
@@ -276,7 +337,9 @@ function App() {
     try {
       const nextIndex = await requestWorkspaceIndex({ force: options.force });
       setWorkspaceIndex(nextIndex);
+      setDocSearch(null);
       setDocReview(null);
+      setSearchError("");
       setReviewError("");
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setVisibleNoteCount(initialVisibleNoteCount);
@@ -447,7 +510,9 @@ function App() {
 
     if (nextRepoFilter) {
       setRepoFilter(nextRepoFilter);
+      setDocSearch(null);
       setDocReview(null);
+      setSearchError("");
       setReviewError("");
       setVisibleNoteCount(initialVisibleNoteCount);
     }
@@ -461,7 +526,9 @@ function App() {
 
   function selectRepo(repoName: string) {
     setRepoFilter(repoName);
+    setDocSearch(null);
     setDocReview(null);
+    setSearchError("");
     setReviewError("");
     setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
@@ -469,7 +536,9 @@ function App() {
 
   function showAllDocs() {
     setRepoFilter("all");
+    setDocSearch(null);
     setDocReview(null);
+    setSearchError("");
     setReviewError("");
     setReviewVisibleIssueCount(initialReviewIssueCount);
     setVisibleNoteCount(initialVisibleNoteCount);
@@ -715,7 +784,11 @@ function App() {
             <div className="list-title-block">
               <div>
                 <h2>{listTitle}</h2>
-                <p>{filteredNotes.length} {filteredNotes.length === 1 ? "doc" : "docs"}</p>
+                <p>
+                  {activeDocSearch
+                    ? `${activeDocSearch.resultCount} ${activeDocSearch.resultCount === 1 ? "match" : "matches"}`
+                    : `${filteredNotes.length} ${filteredNotes.length === 1 ? "doc" : "docs"}`}
+                </p>
               </div>
               <div className="list-actions">
                 <select
@@ -748,14 +821,31 @@ function App() {
                 <input
                   value={query}
                   onChange={(event) => {
-                    setQuery(event.target.value);
+                    const nextQuery = event.target.value;
+                    setQuery(nextQuery);
+                    setDocSearch(null);
+                    setSearchError("");
+                    if (nextQuery.trim().length < contentSearchMinLength) {
+                      setIsSearching(false);
+                    }
                     setVisibleNoteCount(initialVisibleNoteCount);
                   }}
-                  placeholder="Title, path, repo"
+                  placeholder="Title, path, repo, content"
                   spellCheck={false}
                 />
               </div>
             </label>
+            {normalizedQuery.length >= contentSearchMinLength && (
+              <div className={`search-status ${searchError ? "is-error" : ""}`} role={searchError ? "alert" : "status"}>
+                {searchError
+                  ? searchError
+                  : isSearching
+                    ? "Searching note contents..."
+                    : activeDocSearch
+                      ? `Searched ${activeDocSearch.searchedNotes} ${activeDocSearch.searchedNotes === 1 ? "doc" : "docs"} locally.`
+                      : "Searching titles, paths, repos, and note contents."}
+              </div>
+            )}
           </div>
           {(docReview || isReviewing || reviewError) && (
             <section className="review-panel" aria-label="Docs review">
@@ -863,21 +953,30 @@ function App() {
                   </div>
                   <strong>{group.notes.length}</strong>
                 </div>
-                {group.notes.map((note) => (
-                  <button
-                    className={`note-row ${note.rootRelativePath === selectedPath ? "is-selected" : ""}`}
-                    key={note.id}
-                    type="button"
-                    onClick={() => selectNote(note)}
-                  >
-                    <span className="note-title">{note.title}</span>
-                    <span className="note-path">{note.repoName}/{note.repoRelativePath}</span>
-                    <span className="note-meta">
-                      <span>{formatDateLabel(note.updatedAtMs)}</span>
-                      <span className="note-preview">{note.kind} · {formatBytes(note.byteSize)}</span>
-                    </span>
-                  </button>
-                ))}
+                {group.notes.map((note) => {
+                  const searchResult = searchResultByPath.get(note.rootRelativePath);
+
+                  return (
+                    <button
+                      className={`note-row ${note.rootRelativePath === selectedPath ? "is-selected" : ""}`}
+                      key={note.id}
+                      type="button"
+                      onClick={() => selectNote(note)}
+                    >
+                      <span className="note-title">{note.title}</span>
+                      <span className="note-path">{note.repoName}/{note.repoRelativePath}</span>
+                      {searchResult?.snippet && (
+                        <span className="note-search-snippet">
+                          {searchMatchLabel(searchResult)} {searchResult.snippet}
+                        </span>
+                      )}
+                      <span className="note-meta">
+                        <span>{formatDateLabel(note.updatedAtMs)}</span>
+                        <span className="note-preview">{note.kind} · {formatBytes(note.byteSize)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </section>
             ))}
             {!isBooting && visibleNotes.length < filteredNotes.length && (
@@ -892,7 +991,11 @@ function App() {
             {!isBooting && !isIndexing && filteredNotes.length === 0 && (
               <div className="empty-state">
                 <strong>No notes found.</strong>
-                <span>Set a workspace root, refresh the index, or loosen the current filters.</span>
+                <span>
+                  {normalizedQuery.length >= contentSearchMinLength
+                    ? "No titles, paths, repos, or note contents matched this search."
+                    : "Set a workspace root, refresh the index, or loosen the current filters."}
+                </span>
               </div>
             )}
           </div>
@@ -1134,6 +1237,14 @@ function reviewCategoryLabel(category: DocReviewIssue["category"]) {
     case "large-file":
       return "Large file";
   }
+}
+
+function searchMatchLabel(result: DocSearchResult) {
+  if (result.matchKind === "metadata") {
+    return "Metadata:";
+  }
+
+  return result.line ? `Line ${result.line}:` : "Content:";
 }
 
 export default App;
