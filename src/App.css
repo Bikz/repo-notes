@@ -119,10 +119,18 @@
 }
 
 .status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
   padding: 8px 20px;
   font-size: 13px;
   font-weight: 660;
+}
+
+.status-strip > span:first-child {
+  min-width: 0;
 }
 
 .status-strip.is-error {
@@ -133,6 +141,34 @@
 .status-strip.is-ok {
   color: #b8b8ba;
   background: #101011;
+}
+
+.status-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-actions button {
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.status-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.status-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .workspace-grid {
@@ -1419,6 +1455,16 @@ button {
     height: auto;
     grid-template-columns: 1fr auto;
     padding: 14px 12px;
+  }
+
+  .status-strip {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 10px 12px;
+  }
+
+  .status-actions {
+    flex-wrap: wrap;
   }
 
   .window-controls {

@@ -177,6 +177,18 @@ export function isCreateDraftDirty(draft: CreateDraftFields) {
   return draft.repoRelativePath.trim() !== "notes/new-note.md" || draft.content !== "# New note\n\n";
 }
 
+export function isSaveConflictError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("status" in error && error.status === 409) {
+    return true;
+  }
+
+  return error.message.toLowerCase().includes("changed on disk");
+}
+
 export function filterReviewIssues(
   issues: DocReviewIssue[],
   severityFilter: ReviewSeverityFilter,

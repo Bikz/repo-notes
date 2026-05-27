@@ -126,3 +126,7 @@
 - Hardened shortcut routing so create-drawer and workspace-root form focus cannot accidentally save a dirty background note.
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-keyboard-shortcuts.png`
+- Added stale-save conflict recovery in the app UI. When a save returns a disk-change conflict, the status strip now offers `Reload from disk` to explicitly discard the local draft and load the latest file, or `Keep editing` to dismiss the recovery prompt without overwriting anything.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-save-conflict-actions.png`
+- Conflict recovery validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright stale-save recovery check.

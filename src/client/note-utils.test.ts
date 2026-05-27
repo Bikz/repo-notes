@@ -8,6 +8,7 @@ import {
   groupNotesByLocation,
   groupNotesByRecency,
   isCreateDraftDirty,
+  isSaveConflictError,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
   lineTargetForOutlineAnchor,
@@ -151,6 +152,13 @@ test("isCreateDraftDirty ignores repo defaults but protects changed draft fields
   expect(isCreateDraftDirty({ repoName: "alpha", repoRelativePath: "notes/new-note.md", content: "# Brief\n" })).toBe(
     true,
   );
+});
+
+test("isSaveConflictError detects stale-save errors from status or message", () => {
+  expect(isSaveConflictError(errorWithStatus("Conflict", 409))).toBe(true);
+  expect(isSaveConflictError(new Error("This note changed on disk. Refresh the note before saving again."))).toBe(true);
+  expect(isSaveConflictError(errorWithStatus("Missing", 404))).toBe(false);
+  expect(isSaveConflictError("changed on disk")).toBe(false);
 });
 
 test("filterReviewIssues narrows issues by severity and category", () => {
@@ -345,4 +353,8 @@ function keyEvent(
     isComposing: false,
     ...options,
   };
+}
+
+function errorWithStatus(message: string, status: number) {
+  return Object.assign(new Error(message), { status });
 }

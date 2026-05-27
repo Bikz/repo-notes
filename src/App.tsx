@@ -32,6 +32,7 @@ import {
   groupNotesByLocation,
   groupNotesByRecency,
   isCreateDraftDirty,
+  isSaveConflictError,
   initialReviewIssueCount,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
@@ -134,6 +135,7 @@ function App() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [saveConflictPath, setSaveConflictPath] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -260,6 +262,7 @@ function App() {
         if (!isCancelled) {
           setActiveFile(file);
           setEditorValue(file.content);
+          setSaveConflictPath("");
           openPendingPreviewAnchor(file);
         }
       } catch (nextError) {
@@ -499,6 +502,7 @@ function App() {
       setReviewVisibleIssueCount(initialReviewIssueCount);
       setSelectedPath("");
       setNoteHistory({ entries: [], index: -1 });
+      setSaveConflictPath("");
       setActiveFile(null);
       setEditorValue("");
       setNotice(nextConfig.rootExists ? "Workspace root saved." : "Root saved, but the path does not exist.");
@@ -537,6 +541,7 @@ function App() {
       if (selectedPath && !nextIndex.notes.some((note) => note.rootRelativePath === selectedPath)) {
         setSelectedPath("");
         setNoteHistory({ entries: [], index: -1 });
+        setSaveConflictPath("");
         setActiveFile(null);
         setEditorValue("");
       }
@@ -555,6 +560,7 @@ function App() {
     setIsSaving(true);
     setError("");
     setNotice("");
+    setSaveConflictPath("");
 
     const body: UpdateNoteRequest = {
       rootRelativePath: activeFile.note.rootRelativePath,
@@ -572,9 +578,37 @@ function App() {
       setNotice("Saved.");
       await refreshIndex({ force: true, quiet: true });
     } catch (nextError) {
+      if (isSaveConflictError(nextError)) {
+        setSaveConflictPath(activeFile.note.rootRelativePath);
+      }
       setError(messageForError(nextError));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function reloadActiveFileFromDisk() {
+    if (!activeFile) {
+      return;
+    }
+
+    setIsLoadingFile(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const file = await requestJson<NoteFilePayload>(
+        `/api/files?path=${encodeURIComponent(activeFile.note.rootRelativePath)}`,
+      );
+      setActiveFile(file);
+      setEditorValue(file.content);
+      setSaveConflictPath("");
+      setNotice("Reloaded latest disk version.");
+      await refreshIndex({ force: true, quiet: true });
+    } catch (nextError) {
+      setError(messageForError(nextError));
+    } finally {
+      setIsLoadingFile(false);
     }
   }
 
@@ -704,6 +738,7 @@ function App() {
 
     if (!isSameNote) {
       setSelectedPath(note.rootRelativePath);
+      setSaveConflictPath("");
       if (!options.skipHistory) {
         setNoteHistory((current) => pushNoteHistory(current, note.rootRelativePath));
       }
@@ -1019,7 +1054,23 @@ function App() {
 
         {(error || notice) && (
           <div className={`status-strip ${error ? "is-error" : "is-ok"}`} role={error ? "alert" : "status"}>
-            {error || notice}
+            <span>{error || notice}</span>
+            {error && saveConflictPath === selectedNote?.rootRelativePath && (
+              <span className="status-actions">
+                <button type="button" onClick={() => void reloadActiveFileFromDisk()} disabled={isLoadingFile}>
+                  {isLoadingFile ? "Reloading..." : "Reload from disk"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaveConflictPath("");
+                    setError("");
+                  }}
+                >
+                  Keep editing
+                </button>
+              </span>
+            )}
           </div>
         )}
 
@@ -1557,10 +1608,19 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.error ?? `Request failed with ${response.status}`);
+    throw new ApiRequestError(payload?.error ?? `Request failed with ${response.status}`, response.status);
   }
 
   return payload as T;
+}
+
+class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 function requestWorkspaceIndex(options: { backgroundRefresh?: boolean; force?: boolean } = {}) {
