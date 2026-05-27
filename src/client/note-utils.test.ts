@@ -2,6 +2,9 @@ import { expect, test } from "bun:test";
 import type { DocReviewIssue, DocSearchResult, GitChangesPayload, NoteSummary, RepoSummary } from "../shared/types";
 import {
   appShortcutForKey,
+  applyCreateTemplate,
+  createNoteTemplates,
+  createTemplateById,
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
@@ -70,6 +73,55 @@ test("resolvePreferredCreateRepoName follows the active repo context before fall
   expect(resolvePreferredCreateRepoName("alpha", "beta")).toBe("alpha");
   expect(resolvePreferredCreateRepoName("all", "beta")).toBe("beta");
   expect(resolvePreferredCreateRepoName("all")).toBe("");
+});
+
+test("create note templates expose structured product-team defaults", () => {
+  expect(createNoteTemplates.map((template) => template.id)).toEqual(["blank", "prd", "rfc", "decision", "runbook"]);
+  expect(createTemplateById("blank")).toMatchObject({
+    label: "Blank note",
+    defaultPath: "notes/new-note.md",
+    content: "# New note\n\n",
+  });
+  expect(createTemplateById("prd").defaultPath).toBe("docs/prd/new-prd.md");
+  expect(createTemplateById("prd").content).toContain("## Problem");
+  expect(createTemplateById("rfc").content).toContain("## Proposal");
+  expect(createTemplateById("decision").content).toContain("## Decision");
+  expect(createTemplateById("runbook").content).toContain("## Rollback");
+});
+
+test("applyCreateTemplate preserves repo context while replacing template-controlled fields", () => {
+  expect(
+    applyCreateTemplate({
+      repoName: "alpha",
+      templateId: "blank",
+      repoRelativePath: "notes/new-note.md",
+      content: "# New note\n\n",
+    }, "prd"),
+  ).toEqual({
+    repoName: "alpha",
+    templateId: "prd",
+    repoRelativePath: "docs/prd/new-prd.md",
+    content: createTemplateById("prd").content,
+  });
+});
+
+test("isCreateDraftDirty compares against the selected template defaults", () => {
+  expect(
+    isCreateDraftDirty({
+      repoName: "alpha",
+      templateId: "prd",
+      repoRelativePath: "docs/prd/new-prd.md",
+      content: createTemplateById("prd").content,
+    }),
+  ).toBe(false);
+  expect(
+    isCreateDraftDirty({
+      repoName: "alpha",
+      templateId: "prd",
+      repoRelativePath: "docs/prd/custom.md",
+      content: createTemplateById("prd").content,
+    }),
+  ).toBe(true);
 });
 
 test("groupNotesByLocation groups all docs by repo and selected repos by top folder", () => {

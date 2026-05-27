@@ -30,7 +30,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Delete obsolete notes with disk-change protection.
 - Recover cleanly when a note changed on disk before saving.
 - Use editor-grade keyboard shortcuts for save, search, new note, and dismissing transient panels.
-- Create new supported files inside a selected repository.
+- Create new supported files inside a selected repository from blank, PRD, RFC, decision, and runbook templates.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
 - Warm an in-memory content cache after indexing so repeated docs searches avoid rereading every file.
 - Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
@@ -94,6 +94,8 @@ Docs review runs on demand against the selected repository or all indexed reposi
 Git changes run on demand against direct child repositories that have Git metadata. Change responses include changed note paths, status labels, staged/unstaged state, and index presence. They do not include file contents or diffs. Diff previews require an explicit changed note path, are capped by line and byte limits, and are not cached.
 
 The browser stores a small root-scoped session payload in local storage so Repo Notes can reopen to the last valid browsing context. That payload is limited to the configured root path, selected repo, selected note path, note sort, view mode, and whether the projects pane is visible; it does not include note contents, search snippets, review results, or editor drafts.
+
+New-note templates are browser-side defaults for the create drawer. Choosing a template only pre-fills the proposed repository-relative path and initial content before the normal `POST /api/files` create request.
 
 Rendered preview links only navigate inside Repo Notes when they resolve to notes already present in the current local index. Missing local links are reported in the app instead of navigating the browser outside the notes surface.
 

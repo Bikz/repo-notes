@@ -46,6 +46,10 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 
 The client renders Markdown and HTML in the browser with sanitization. The server treats note content as local text and does not transform it.
 
+## Creation Templates
+
+The new-note drawer owns lightweight document templates for common product-team docs: blank notes, PRDs, RFCs, decision records, and runbooks. Templates are client-side defaults only. Selecting one updates the draft path and content fields, and the final create action still uses the normal `POST /api/files` API with the same workspace, repository, extension, ignored-directory, no-overwrite, and symlink-boundary checks as any other created note.
+
 ## Storage
 
 The configured workspace root is persisted at:

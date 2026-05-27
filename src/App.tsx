@@ -31,11 +31,15 @@ import type {
   NoteLineTarget,
   NoteOutlineItem,
   NoteSortMode,
+  CreateTemplateId,
   SessionViewMode,
   WorkspaceSessionState,
 } from "./client/note-utils";
 import {
   appShortcutForKey,
+  applyCreateTemplate,
+  createNoteTemplates,
+  createTemplateById,
   extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
@@ -88,6 +92,7 @@ type MobilePane = "browse" | "read";
 
 interface CreateFormState {
   repoName: string;
+  templateId: CreateTemplateId;
   repoRelativePath: string;
   content: string;
 }
@@ -107,10 +112,12 @@ interface PreviewAnchorTarget {
   anchor: string;
 }
 
+const blankCreateTemplate = createTemplateById("blank");
 const emptyCreateForm: CreateFormState = {
   repoName: "",
-  repoRelativePath: "notes/new-note.md",
-  content: "# New note\n\n",
+  templateId: blankCreateTemplate.id,
+  repoRelativePath: blankCreateTemplate.defaultPath,
+  content: blankCreateTemplate.content,
 };
 const emptyMoveForm: MoveFormState = {
   repoRelativePath: "",
@@ -2092,6 +2099,23 @@ function App() {
                     {repos.map((repo) => (
                       <option key={repo.name} value={repo.name}>
                         {repo.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Template</span>
+                  <select
+                    value={createForm.templateId}
+                    onChange={(event) =>
+                      setCreateForm((current) =>
+                        applyCreateTemplate(current, event.target.value as CreateTemplateId),
+                      )
+                    }
+                  >
+                    {createNoteTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.label}
                       </option>
                     ))}
                   </select>

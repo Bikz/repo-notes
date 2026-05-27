@@ -170,3 +170,8 @@
 - Browser proof used a disposable Git repo, loaded the modified doc diff from the Changes panel, verified removed and added lines, opened the file from the diff preview, and saved:
   - `output/playwright/repo-notes-git-diff-preview.png`
 - Git diff validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Started a structured creation workflow so product teams can start common docs without hand-writing the same scaffold in every repository.
+- Added client-side new-note templates for blank notes, PRDs, RFCs, decision records, and runbooks. Template selection pre-fills the proposed path and starter content while preserving the selected repo and leaving the safe create API unchanged.
+- Browser proof used a disposable workspace, selected the PRD template in the New note drawer, verified the suggested path/content, created the file on disk, and opened the rendered note:
+  - `output/playwright/repo-notes-create-template.png`
+- Creation template validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.

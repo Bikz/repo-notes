@@ -15,10 +15,19 @@ export type SessionViewMode = "preview" | "edit" | "split";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
 export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel";
+export type CreateTemplateId = "blank" | "prd" | "rfc" | "decision" | "runbook";
 
 export interface CreateDraftFields {
   repoName: string;
+  templateId?: CreateTemplateId;
   repoRelativePath: string;
+  content: string;
+}
+
+export interface CreateTemplateDefinition {
+  id: CreateTemplateId;
+  label: string;
+  defaultPath: string;
   content: string;
 }
 
@@ -66,6 +75,156 @@ export interface WorkspaceSessionState {
   noteSort: NoteSortMode;
   viewMode: SessionViewMode;
   areSourcesVisible: boolean;
+}
+
+export const createNoteTemplates: CreateTemplateDefinition[] = [
+  {
+    id: "blank",
+    label: "Blank note",
+    defaultPath: "notes/new-note.md",
+    content: "# New note\n\n",
+  },
+  {
+    id: "prd",
+    label: "Product requirements",
+    defaultPath: "docs/prd/new-prd.md",
+    content: [
+      "# Product requirements",
+      "",
+      "## Problem",
+      "",
+      "What customer or team problem should this solve?",
+      "",
+      "## Goals",
+      "",
+      "- ",
+      "",
+      "## Non-goals",
+      "",
+      "- ",
+      "",
+      "## Users",
+      "",
+      "- ",
+      "",
+      "## Requirements",
+      "",
+      "- ",
+      "",
+      "## Open questions",
+      "",
+      "- ",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "rfc",
+    label: "RFC",
+    defaultPath: "docs/rfcs/new-rfc.md",
+    content: [
+      "# RFC",
+      "",
+      "## Summary",
+      "",
+      "What are we proposing?",
+      "",
+      "## Context",
+      "",
+      "What constraints, history, or current behavior matters?",
+      "",
+      "## Proposal",
+      "",
+      "- ",
+      "",
+      "## Alternatives",
+      "",
+      "- ",
+      "",
+      "## Rollout",
+      "",
+      "- ",
+      "",
+      "## Risks",
+      "",
+      "- ",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "decision",
+    label: "Decision record",
+    defaultPath: "docs/decisions/new-decision.md",
+    content: [
+      "# Decision record",
+      "",
+      "## Context",
+      "",
+      "What situation led to this decision?",
+      "",
+      "## Decision",
+      "",
+      "What did we decide?",
+      "",
+      "## Consequences",
+      "",
+      "- ",
+      "",
+      "## Follow-ups",
+      "",
+      "- ",
+      "",
+    ].join("\n"),
+  },
+  {
+    id: "runbook",
+    label: "Runbook",
+    defaultPath: "docs/runbooks/new-runbook.md",
+    content: [
+      "# Runbook",
+      "",
+      "## Purpose",
+      "",
+      "When should someone use this runbook?",
+      "",
+      "## Prerequisites",
+      "",
+      "- ",
+      "",
+      "## Steps",
+      "",
+      "1. ",
+      "",
+      "## Verification",
+      "",
+      "- ",
+      "",
+      "## Rollback",
+      "",
+      "- ",
+      "",
+      "## Owners",
+      "",
+      "- ",
+      "",
+    ].join("\n"),
+  },
+];
+
+export function createTemplateById(id: CreateTemplateId) {
+  return createNoteTemplates.find((template) => template.id === id) ?? createNoteTemplates[0];
+}
+
+export function applyCreateTemplate(
+  draft: CreateDraftFields,
+  templateId: CreateTemplateId,
+): CreateDraftFields & { templateId: CreateTemplateId } {
+  const template = createTemplateById(templateId);
+  return {
+    repoName: draft.repoName,
+    templateId: template.id,
+    repoRelativePath: template.defaultPath,
+    content: template.content,
+  };
 }
 
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
@@ -220,7 +379,8 @@ export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
 }
 
 export function isCreateDraftDirty(draft: CreateDraftFields) {
-  return draft.repoRelativePath.trim() !== "notes/new-note.md" || draft.content !== "# New note\n\n";
+  const template = createTemplateById(draft.templateId ?? "blank");
+  return draft.repoRelativePath.trim() !== template.defaultPath || draft.content !== template.content;
 }
 
 export function isSaveConflictError(error: unknown) {
