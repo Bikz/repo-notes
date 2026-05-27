@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import type { FormEvent } from "react";
+import type { MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import type { NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
@@ -30,7 +31,10 @@ import {
   initialReviewIssueCount,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
+  lineTargetForOutlineAnchor,
   nextReviewIssueLimit,
+  resolvePreviewLinkTarget,
+  isExternalPreviewHref,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
   sortNotes,
@@ -62,6 +66,11 @@ interface CreateFormState {
 interface OpenNoteOptions {
   repoName?: string;
   preserveReview?: boolean;
+}
+
+interface PreviewAnchorTarget {
+  rootRelativePath: string;
+  anchor: string;
 }
 
 const emptyCreateForm: CreateFormState = {
@@ -117,11 +126,37 @@ function App() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingPreviewAnchorRef = useRef<PreviewAnchorTarget | null>(null);
 
   const selectedNote = activeFile?.note ?? null;
   const isDirty = activeFile !== null && editorValue !== activeFile.content;
   const repos = useMemo(() => workspaceIndex?.repos ?? [], [workspaceIndex]);
   const notes = useMemo(() => workspaceIndex?.notes ?? [], [workspaceIndex]);
+
+  function openPendingPreviewAnchor(file: NoteFilePayload) {
+    const pendingAnchor = pendingPreviewAnchorRef.current;
+    if (!pendingAnchor || pendingAnchor.rootRelativePath !== file.note.rootRelativePath) {
+      return;
+    }
+
+    pendingPreviewAnchorRef.current = null;
+    if (file.note.kind !== "markdown") {
+      return;
+    }
+
+    const anchorTarget = lineTargetForOutlineAnchor(
+      extractMarkdownOutline(file.content),
+      pendingAnchor.anchor,
+      file.note.rootRelativePath,
+    );
+    if (!anchorTarget) {
+      return;
+    }
+
+    setViewMode((current) => (current === "edit" ? "edit" : "split"));
+    setPendingLineTarget(anchorTarget);
+    setNotice(`Opened ${file.note.title} at ${pendingAnchor.anchor}.`);
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -208,6 +243,7 @@ function App() {
         if (!isCancelled) {
           setActiveFile(file);
           setEditorValue(file.content);
+          openPendingPreviewAnchor(file);
         }
       } catch (nextError) {
         if (!isCancelled) {
@@ -678,6 +714,62 @@ function App() {
     setViewMode((current) => (current === "edit" ? "edit" : "split"));
     setPendingLineTarget({ rootRelativePath: selectedNote.rootRelativePath, line: item.line });
     setNotice(`Opened ${item.title} at line ${item.line}.`);
+  }
+
+  function handleRenderedNoteClick(event: MouseEvent<HTMLElement>) {
+    if (!selectedNote) {
+      return;
+    }
+
+    const link = (event.target as Element | null)?.closest?.("a[href]");
+    const href = link?.getAttribute("href")?.trim();
+    if (!href) {
+      return;
+    }
+
+    event.preventDefault();
+    setError("");
+
+    if (isExternalPreviewHref(href)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const target = resolvePreviewLinkTarget(selectedNote, notes, href);
+    if (!target) {
+      setError("That local link is not in the current index. Refresh the workspace or create the linked note.");
+      return;
+    }
+
+    pendingPreviewAnchorRef.current =
+      target.anchor && target.note.rootRelativePath !== selectedNote.rootRelativePath
+        ? { rootRelativePath: target.note.rootRelativePath, anchor: target.anchor }
+        : null;
+
+    if (!openNote(target.note)) {
+      pendingPreviewAnchorRef.current = null;
+      return;
+    }
+
+    if (!target.anchor) {
+      setNotice(`Opened ${target.note.title}.`);
+      return;
+    }
+
+    if (target.note.rootRelativePath !== selectedNote.rootRelativePath) {
+      setNotice(`Opened ${target.note.title}.`);
+      return;
+    }
+
+    const anchorTarget = lineTargetForOutlineAnchor(noteOutline, target.anchor, selectedNote.rootRelativePath);
+    if (!anchorTarget) {
+      setNotice(`Opened ${target.note.title}.`);
+      return;
+    }
+
+    setViewMode((current) => (current === "edit" ? "edit" : "split"));
+    setPendingLineTarget(anchorTarget);
+    setNotice(`Opened ${target.note.title} at ${target.anchor}.`);
   }
 
   return (
@@ -1211,6 +1303,7 @@ function App() {
                 {viewMode !== "edit" && (
                   <article
                     className="rendered-note"
+                    onClick={handleRenderedNoteClick}
                     dangerouslySetInnerHTML={{ __html: renderedHtml }}
                   />
                 )}

@@ -66,3 +66,7 @@ Docs search is an on-demand workflow, separate from indexing, because it may rea
 Docs review is an on-demand workflow, separate from indexing, because it reads document bodies to inspect markers and Markdown links. The review scanner uses the current index as its scope, keeps reads concurrency-limited, ignores remote links and anchors-only links, checks local Markdown targets with workspace-relative safety resolution, and returns a capped list of findings.
 
 Review payloads are metadata-only: category, severity, repository, root-relative path, title, line, target path, related counts, and aggregate totals. They intentionally do not include snippets or full note contents.
+
+## Preview Navigation
+
+The rendered reader intercepts Markdown and HTML preview link clicks in the browser. External links are opened outside the current app tab. Local relative links only open inside Repo Notes when they resolve to a note already present in the current index, and all resulting file reads still go through the normal `/api/files` safety path. Missing local links are surfaced as UI errors instead of navigating the Vite app to an arbitrary relative URL.

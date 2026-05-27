@@ -106,3 +106,7 @@
 - The outline parser ignores fenced-code headings, deduplicates generated section IDs, and feeds the existing line-target behavior so section clicks open split view and focus the editor at the section line.
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-outline-section-jump.png`
+- Added safe preview link navigation: same-document and linked-note anchors jump through the outline/line-target path, indexed relative Markdown links open inside Repo Notes, external links open outside the current app tab, and missing local links show an app error instead of navigating the browser.
+- Added client helper coverage for local preview link resolution, external link detection, and outline-anchor line targets.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-preview-local-link-navigation.png`

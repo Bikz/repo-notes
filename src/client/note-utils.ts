@@ -16,6 +16,11 @@ export interface NoteLineTarget {
   line?: number;
 }
 
+export interface PreviewLinkTarget {
+  note: NoteSummary;
+  anchor?: string;
+}
+
 export interface NoteGroup {
   title: string;
   detail?: string;
@@ -159,6 +164,60 @@ export function extractMarkdownOutline(content: string): NoteOutlineItem[] {
   return outline;
 }
 
+export function resolvePreviewLinkTarget(
+  currentNote: NoteSummary,
+  notes: NoteSummary[],
+  href: string,
+): PreviewLinkTarget | null {
+  const trimmedHref = href.trim();
+  if (!trimmedHref || isExternalPreviewHref(trimmedHref) || trimmedHref.startsWith("/")) {
+    return null;
+  }
+
+  const [rawPath = "", rawAnchor] = trimmedHref.split("#", 2);
+  const anchor = decodeUriComponentSafe(rawAnchor ?? "");
+
+  if (!rawPath) {
+    return anchor ? { note: currentNote, anchor } : null;
+  }
+
+  const decodedPath = decodeUriComponentSafe(rawPath.split("?")[0] ?? "");
+  const targetRepoRelativePath = resolveRepoRelativeLinkPath(currentNote.repoRelativePath, decodedPath);
+  if (!targetRepoRelativePath) {
+    return null;
+  }
+
+  const rootRelativePath = `${currentNote.repoName}/${targetRepoRelativePath}`;
+  const linkedNote = notes.find((note) => note.rootRelativePath === rootRelativePath);
+  if (!linkedNote) {
+    return null;
+  }
+
+  return anchor ? { note: linkedNote, anchor } : { note: linkedNote };
+}
+
+export function isExternalPreviewHref(href: string) {
+  return href.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(href);
+}
+
+export function lineTargetForOutlineAnchor(
+  outline: NoteOutlineItem[],
+  anchor: string,
+  rootRelativePath: string,
+): NoteLineTarget | null {
+  const normalizedAnchor = slugForHeading(decodeUriComponentSafe(anchor.replace(/^#/, "")));
+  const outlineItem = outline.find((item) => slugForHeading(item.title) === normalizedAnchor);
+
+  if (!outlineItem) {
+    return null;
+  }
+
+  return {
+    rootRelativePath,
+    line: outlineItem.line,
+  };
+}
+
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {
   const buckets: NoteGroup[] = [
     { title: "Today", notes: [] },
@@ -250,6 +309,38 @@ function slugForHeading(title: string) {
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/^-|-$/g, "") || "section";
+}
+
+function resolveRepoRelativeLinkPath(currentRepoRelativePath: string, hrefPath: string) {
+  const currentParts = currentRepoRelativePath.split("/").filter(Boolean);
+  currentParts.pop();
+
+  const targetParts = [...currentParts];
+  for (const part of hrefPath.split("/")) {
+    if (!part || part === ".") {
+      continue;
+    }
+
+    if (part === "..") {
+      if (targetParts.length === 0) {
+        return null;
+      }
+      targetParts.pop();
+      continue;
+    }
+
+    targetParts.push(part);
+  }
+
+  return targetParts.length > 0 ? targetParts.join("/") : null;
+}
+
+function decodeUriComponentSafe(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 const dayMs = 24 * 60 * 60 * 1000;

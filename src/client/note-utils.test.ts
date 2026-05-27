@@ -8,7 +8,10 @@ import {
   groupNotesByRecency,
   lineStartOffsetForLine,
   lineTargetForSearchResult,
+  lineTargetForOutlineAnchor,
   nextReviewIssueLimit,
+  resolvePreviewLinkTarget,
+  isExternalPreviewHref,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
   sortNotes,
@@ -167,6 +170,55 @@ test("extractMarkdownOutline deduplicates generated ids", () => {
       ].join("\n"),
     ).map((heading) => heading.id),
   ).toEqual(["heading-1-overview", "heading-2-overview-2", "heading-3-overview-3"]);
+});
+
+test("resolvePreviewLinkTarget resolves same-repo markdown links against indexed notes", () => {
+  const currentNote = note("alpha", "docs/guides/start.md", "start", 100);
+  const linkedNote = note("alpha", "docs/reference/api.md", "api", 100);
+  const parentNote = note("alpha", "docs/README.md", "README", 100);
+  const allNotes = [currentNote, linkedNote, parentNote, note("beta", "docs/reference/api.md", "api", 100)];
+
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "../reference/api.md#setup")).toEqual({
+    note: linkedNote,
+    anchor: "setup",
+  });
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "#goals")).toEqual({
+    note: currentNote,
+    anchor: "goals",
+  });
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "../README.md")).toEqual({ note: parentNote });
+});
+
+test("resolvePreviewLinkTarget rejects missing, cross-repo, absolute, and external targets", () => {
+  const currentNote = note("alpha", "docs/start.md", "start", 100);
+  const allNotes = [currentNote, note("beta", "docs/other.md", "other", 100)];
+
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "missing.md")).toBeNull();
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "../beta/docs/other.md")).toBeNull();
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "/alpha/docs/start.md")).toBeNull();
+  expect(resolvePreviewLinkTarget(currentNote, allNotes, "https://example.com/docs")).toBeNull();
+});
+
+test("isExternalPreviewHref identifies links that should leave Repo Notes navigation", () => {
+  expect(isExternalPreviewHref("https://example.com")).toBe(true);
+  expect(isExternalPreviewHref("mailto:team@example.com")).toBe(true);
+  expect(isExternalPreviewHref("//example.com/docs")).toBe(true);
+  expect(isExternalPreviewHref("../docs/start.md")).toBe(false);
+  expect(isExternalPreviewHref("#goals")).toBe(false);
+});
+
+test("lineTargetForOutlineAnchor maps markdown anchors to outline line targets", () => {
+  const outline = extractMarkdownOutline(["# Product Brief", "## Launch Scope", "## Launch Scope"].join("\n"));
+
+  expect(lineTargetForOutlineAnchor(outline, "launch-scope", "alpha/docs/brief.md")).toEqual({
+    rootRelativePath: "alpha/docs/brief.md",
+    line: 2,
+  });
+  expect(lineTargetForOutlineAnchor(outline, "#product-brief", "alpha/docs/brief.md")).toEqual({
+    rootRelativePath: "alpha/docs/brief.md",
+    line: 1,
+  });
+  expect(lineTargetForOutlineAnchor(outline, "missing", "alpha/docs/brief.md")).toBeNull();
 });
 
 const dayMs = 24 * 60 * 60 * 1000;

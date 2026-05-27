@@ -21,6 +21,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Search titles, paths, repository names, and note contents with bounded local snippets.
 - Preview Markdown, plain text, and HTML with client-side sanitization.
 - Jump between Markdown sections from an in-file outline.
+- Open indexed local Markdown links directly inside Repo Notes.
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
@@ -76,6 +77,8 @@ Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache
 Content search runs on demand against the selected repository or all indexed repositories. Search responses can include a bounded line-level snippet for matching local content, but snippets are not written to the metadata cache.
 
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
+
+Rendered preview links only navigate inside Repo Notes when they resolve to notes already present in the current local index. Missing local links are reported in the app instead of navigating the browser outside the notes surface.
 
 Do not point Repo Notes at directories containing private data you do not want listed in the app.
 
