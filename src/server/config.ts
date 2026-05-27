@@ -37,6 +37,10 @@ export async function saveWorkspaceConfig(rootPath: string): Promise<WorkspaceCo
   };
 }
 
+export function workspaceStateDirectory() {
+  return dirname(workspaceConfigPath());
+}
+
 async function readStoredConfig(): Promise<StoredConfig> {
   try {
     return JSON.parse(await readFile(workspaceConfigPath(), "utf8")) as StoredConfig;

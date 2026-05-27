@@ -1,6 +1,6 @@
 import { readdir, stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
-import type { NoteSummary, RepoSummary, WorkspaceIndex } from "../shared/types";
+import type { NoteSummary, WorkspaceIndex } from "../shared/types";
 import {
   assertSupportedNoteExtension,
   noteKindForExtension,
@@ -15,32 +15,38 @@ const defaultMaxFileBytes = 2 * 1024 * 1024;
 
 interface ScanOptions {
   maxFileBytes?: number;
+  maxConcurrency?: number;
 }
 
 export async function scanWorkspace(rootPath: string, options: ScanOptions = {}): Promise<WorkspaceIndex> {
   const root = resolveWorkspaceRoot(rootPath);
   const maxFileBytes = options.maxFileBytes ?? defaultMaxFileBytes;
-  const entries = await readdir(root, { withFileTypes: true });
-  const repos: RepoSummary[] = [];
-  const notes: NoteSummary[] = [];
+  const limit = createLimiter(options.maxConcurrency ?? 64);
+  const entries = await limit(() => readdir(root, { withFileTypes: true }));
+  const repoResults = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && !shouldSkipWorkspaceChildDirectory(entry.name))
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map(async (entry) => {
+        const repoPath = resolve(root, entry.name);
+        const [repoNotes, isGitRepo] = await Promise.all([
+          scanRepository(root, repoPath, entry.name, maxFileBytes, limit),
+          pathExists(join(repoPath, ".git"), limit),
+        ]);
 
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    if (!entry.isDirectory() || shouldSkipWorkspaceChildDirectory(entry.name)) {
-      continue;
-    }
-
-    const repoPath = resolve(root, entry.name);
-    const repoNotes = await scanRepository(root, repoPath, entry.name, maxFileBytes);
-    const isGitRepo = await pathExists(join(repoPath, ".git"));
-
-    repos.push({
-      name: entry.name,
-      rootRelativePath: entry.name,
-      isGitRepo,
-      noteCount: repoNotes.length,
-    });
-    notes.push(...repoNotes);
-  }
+        return {
+          repo: {
+            name: entry.name,
+            rootRelativePath: entry.name,
+            isGitRepo,
+            noteCount: repoNotes.length,
+          },
+          notes: repoNotes,
+        };
+      }),
+  );
+  const repos = repoResults.map((result) => result.repo);
+  const notes = repoResults.flatMap((result) => result.notes);
 
   return {
     rootPath: root,
@@ -55,9 +61,10 @@ async function scanRepository(
   repoPath: string,
   repoName: string,
   maxFileBytes: number,
+  limit: Limiter,
 ) {
   const notes: NoteSummary[] = [];
-  await walkRepository(rootPath, repoPath, repoName, repoPath, maxFileBytes, notes);
+  await walkRepository(rootPath, repoPath, repoName, repoPath, maxFileBytes, notes, limit);
   return notes;
 }
 
@@ -68,49 +75,52 @@ async function walkRepository(
   currentPath: string,
   maxFileBytes: number,
   notes: NoteSummary[],
+  limit: Limiter,
 ) {
-  const entries = await readdir(currentPath, { withFileTypes: true });
+  const entries = await limit(() => readdir(currentPath, { withFileTypes: true }));
 
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    const absolutePath = join(currentPath, entry.name);
+  await Promise.all(
+    entries.sort((left, right) => left.name.localeCompare(right.name)).map(async (entry) => {
+      const absolutePath = join(currentPath, entry.name);
 
-    if (entry.isDirectory()) {
-      if (!shouldSkipDirectory(entry.name)) {
-        await walkRepository(rootPath, repoPath, repoName, absolutePath, maxFileBytes, notes);
+      if (entry.isDirectory()) {
+        if (!shouldSkipDirectory(entry.name)) {
+          await walkRepository(rootPath, repoPath, repoName, absolutePath, maxFileBytes, notes, limit);
+        }
+        return;
       }
-      continue;
-    }
 
-    if (!entry.isFile()) {
-      continue;
-    }
+      if (!entry.isFile()) {
+        return;
+      }
 
-    const extension = extname(entry.name).toLowerCase();
-    if (!isSupportedExtension(extension)) {
-      continue;
-    }
+      const extension = extname(entry.name).toLowerCase();
+      if (!isSupportedExtension(extension)) {
+        return;
+      }
 
-    const fileStat = await stat(absolutePath);
-    if (fileStat.size > maxFileBytes) {
-      continue;
-    }
+      const fileStat = await limit(() => stat(absolutePath));
+      if (fileStat.size > maxFileBytes) {
+        return;
+      }
 
-    const noteExtension = assertSupportedNoteExtension(entry.name);
-    const repoRelativePath = toRepoRelativePath(repoPath, absolutePath);
-    const rootRelativePath = toRootRelativePath(rootPath, absolutePath);
+      const noteExtension = assertSupportedNoteExtension(entry.name);
+      const repoRelativePath = toRepoRelativePath(repoPath, absolutePath);
+      const rootRelativePath = toRootRelativePath(rootPath, absolutePath);
 
-    notes.push({
-      id: noteId(rootRelativePath),
-      repoName,
-      repoRelativePath,
-      rootRelativePath,
-      extension: noteExtension,
-      kind: noteKindForExtension(noteExtension),
-      title: titleFromPath(entry.name),
-      byteSize: fileStat.size,
-      updatedAtMs: fileStat.mtimeMs,
-    });
-  }
+      notes.push({
+        id: noteId(rootRelativePath),
+        repoName,
+        repoRelativePath,
+        rootRelativePath,
+        extension: noteExtension,
+        kind: noteKindForExtension(noteExtension),
+        title: titleFromPath(entry.name),
+        byteSize: fileStat.size,
+        updatedAtMs: fileStat.mtimeMs,
+      });
+    }),
+  );
 }
 
 function isSupportedExtension(extension: string) {
@@ -131,9 +141,9 @@ function noteId(rootRelativePath: string) {
   return Buffer.from(rootRelativePath).toString("base64url");
 }
 
-async function pathExists(path: string) {
+async function pathExists(path: string, limit: Limiter) {
   try {
-    await stat(path);
+    await limit(() => stat(path));
     return true;
   } catch {
     return false;
@@ -153,4 +163,29 @@ function compareNotePaths(left: NoteSummary, right: NoteSummary) {
   }
 
   return left.repoRelativePath.localeCompare(right.repoRelativePath);
+}
+
+type Limiter = <T>(operation: () => Promise<T>) => Promise<T>;
+
+function createLimiter(maxConcurrency: number): Limiter {
+  let activeCount = 0;
+  const waiting: Array<() => void> = [];
+
+  function release() {
+    activeCount -= 1;
+    waiting.shift()?.();
+  }
+
+  return async function limit<T>(operation: () => Promise<T>) {
+    if (activeCount >= maxConcurrency) {
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    }
+
+    activeCount += 1;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  };
 }

@@ -50,3 +50,8 @@
   - `output/playwright/repo-notes-repo-hierarchy-mobile-browse.png`
 - Renamed product-facing copy to Repo Notes across the app shell, document title, README, architecture notes, server startup log, and progress history while keeping `repo-notes` as the technical slug/config path.
 - Brand rename validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check. Browser proof: `output/playwright/repo-notes-brand-rename.png`.
+- Investigated search/index latency after product feedback. The bottleneck was not browser search; it was fresh recursive workspace indexing on every open/refresh.
+- Added a metadata-only index cache at `~/.repo-notes/index-cache.json`, changed app boot to hydrate cached note metadata immediately, and force-refresh the index quietly afterward.
+- Parallelized filesystem scanning with bounded async I/O so forced refreshes are less serial while still respecting ignored/generated directory rules.
+- Measured the current `/Users/torva/Developer` workspace at 23 repos and 4279 notes: cached metadata loads in about 3 ms, while a forced fresh scan now completes in about 0.2-0.3 seconds on this machine.
+- Cache/index validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright console-error check. Browser proof: `output/playwright/repo-notes-cached-index.png`.

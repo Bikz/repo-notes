@@ -119,7 +119,7 @@ function App() {
         setRootPathInput(nextConfig.rootPath);
 
         if (nextConfig.rootExists) {
-          const nextIndex = await requestJson<WorkspaceIndex>("/api/index");
+          const nextIndex = await requestWorkspaceIndex({ backgroundRefresh: true });
           if (isCancelled) {
             return;
           }
@@ -129,6 +129,9 @@ function App() {
             ...current,
             repoName: resolveCreateRepoName(current.repoName, nextIndex.repos),
           }));
+          if (nextIndex.cacheStatus === "cached") {
+            void hydrateFreshIndex();
+          }
         }
       } catch (nextError) {
         if (!isCancelled) {
@@ -142,6 +145,26 @@ function App() {
     }
 
     void boot();
+
+    async function hydrateFreshIndex() {
+      try {
+        const freshIndex = await requestWorkspaceIndex({ force: true });
+        if (isCancelled) {
+          return;
+        }
+
+        setWorkspaceIndex(freshIndex);
+        setVisibleNoteCount(initialVisibleNoteCount);
+        setCreateForm((current) => ({
+          ...current,
+          repoName: resolveCreateRepoName(current.repoName, freshIndex.repos),
+        }));
+      } catch (nextError) {
+        if (!isCancelled) {
+          setError(messageForError(nextError));
+        }
+      }
+    }
 
     return () => {
       isCancelled = true;
@@ -244,19 +267,19 @@ function App() {
       setNotice(nextConfig.rootExists ? "Workspace root saved." : "Root saved, but the path does not exist.");
 
       if (nextConfig.rootExists) {
-        await refreshIndex({ quiet: true });
+        await refreshIndex({ force: true, quiet: true });
       }
     } catch (nextError) {
       setError(messageForError(nextError));
     }
   }
 
-  async function refreshIndex(options: { quiet?: boolean } = {}) {
+  async function refreshIndex(options: { force?: boolean; quiet?: boolean } = {}) {
     setIsIndexing(true);
     setError("");
 
     try {
-      const nextIndex = await requestJson<WorkspaceIndex>("/api/index");
+      const nextIndex = await requestWorkspaceIndex({ force: options.force });
       setWorkspaceIndex(nextIndex);
       setVisibleNoteCount(initialVisibleNoteCount);
       setCreateForm((current) => ({
@@ -302,7 +325,7 @@ function App() {
       setActiveFile(savedFile);
       setEditorValue(savedFile.content);
       setNotice("Saved.");
-      await refreshIndex({ quiet: true });
+      await refreshIndex({ force: true, quiet: true });
     } catch (nextError) {
       setError(messageForError(nextError));
     } finally {
@@ -335,7 +358,7 @@ function App() {
       setIsCreateOpen(false);
       setCreateForm((current) => ({ ...emptyCreateForm, repoName: current.repoName }));
       setNotice("Created note.");
-      await refreshIndex({ quiet: true });
+      await refreshIndex({ force: true, quiet: true });
     } catch (nextError) {
       setError(messageForError(nextError));
     } finally {
@@ -476,7 +499,13 @@ function App() {
             >
               <SquarePen size={18} />
             </button>
-            <button className="round-button" type="button" onClick={() => void refreshIndex()} disabled={isIndexing} aria-label="Refresh">
+            <button
+              className="round-button"
+              type="button"
+              onClick={() => void refreshIndex({ force: true })}
+              disabled={isIndexing}
+              aria-label="Refresh"
+            >
               {isIndexing ? <Loader2 className="spin" size={18} /> : <RefreshCcw size={18} />}
             </button>
             <button className="round-button" type="button" aria-label="More">
@@ -818,6 +847,20 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
   }
 
   return payload as T;
+}
+
+function requestWorkspaceIndex(options: { backgroundRefresh?: boolean; force?: boolean } = {}) {
+  const params = new URLSearchParams();
+  if (options.backgroundRefresh) {
+    params.set("background", "1");
+  }
+  if (options.force) {
+    params.set("force", "1");
+  }
+
+  const queryString = params.toString();
+  const query = queryString ? `?${queryString}` : "";
+  return requestJson<WorkspaceIndex>(`/api/index${query}`);
 }
 
 function messageForError(error: unknown) {

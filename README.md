@@ -21,6 +21,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Preview Markdown, plain text, and HTML with client-side sanitization.
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
+- Open quickly from a local metadata cache, then refresh that index from disk in the background.
 - Keep all file history in the repositories that already own those files.
 
 ## Development
@@ -64,6 +65,8 @@ The configured root path is stored at:
 ```text
 ~/.repo-notes/config.json
 ```
+
+Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache.json` so the app can open quickly without rewalking every repository before showing search results. The cache stores paths and file metadata, not note contents.
 
 Do not point Repo Notes at directories containing private data you do not want listed in the app.
 

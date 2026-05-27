@@ -24,7 +24,9 @@ The scanner treats each direct child directory under the workspace root as a rep
 
 - `GET /api/config`: returns the configured root path and whether it exists.
 - `PUT /api/config`: updates the configured root path.
-- `GET /api/index`: scans the workspace root and returns repositories plus note metadata.
+- `GET /api/index`: returns repositories plus note metadata from the local metadata cache when available.
+- `GET /api/index?force=1`: rebuilds the metadata index from disk.
+- `GET /api/index?background=1`: returns cached metadata and queues a background rebuild.
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
 - `PUT /api/files`: updates an existing note file in place.
 - `POST /api/files`: creates a new supported note file inside a selected repository without overwriting.
@@ -35,8 +37,16 @@ The client renders Markdown and HTML in the browser with sanitization. The serve
 
 ## Storage
 
-Only the configured workspace root is persisted, at:
+The configured workspace root is persisted at:
 
 ```text
 ~/.repo-notes/config.json
 ```
+
+Repo Notes also stores a metadata-only index cache next to the config file:
+
+```text
+~/.repo-notes/index-cache.json
+```
+
+The cache stores repository names, relative note paths, sizes, and modification times. It does not store note contents.

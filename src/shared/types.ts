@@ -30,6 +30,7 @@ export interface NoteSummary {
 export interface WorkspaceIndex {
   rootPath: string;
   scannedAtMs: number;
+  cacheStatus?: "cached" | "fresh";
   repos: RepoSummary[];
   notes: NoteSummary[];
 }

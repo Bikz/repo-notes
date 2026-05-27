@@ -1,7 +1,7 @@
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { createNoteFile, NoteWriteConflictError, readNoteFile, writeNoteFile } from "./file-store";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
-import { scanWorkspace } from "./indexer";
+import { getWorkspaceIndex } from "./index-cache";
 import type { CreateNoteRequest, UpdateNoteRequest } from "../shared/types";
 
 const port = Number(process.env.PORT ?? 4177);
@@ -58,7 +58,12 @@ async function handleApiRequest(request: Request, url: URL) {
     if (!config.rootExists) {
       throw new HttpError("Workspace root does not exist.", 400);
     }
-    return jsonResponse(await scanWorkspace(config.rootPath));
+    return jsonResponse(
+      await getWorkspaceIndex(config.rootPath, {
+        backgroundRefresh: url.searchParams.get("background") === "1",
+        force: url.searchParams.get("force") === "1",
+      }),
+    );
   }
 
   if (request.method === "GET" && url.pathname === "/api/files") {
