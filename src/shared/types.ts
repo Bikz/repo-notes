@@ -171,3 +171,22 @@ export interface GitChangesPayload {
   isTruncated: boolean;
   changes: GitChangedNote[];
 }
+
+export type GitDiffLineKind = "meta" | "hunk" | "context" | "added" | "removed";
+
+export interface GitDiffLine {
+  kind: GitDiffLineKind;
+  text: string;
+}
+
+export interface GitDiffPayload {
+  generatedAtMs: number;
+  repoName: string;
+  repoRelativePath: string;
+  rootRelativePath: string;
+  status: GitChangeStatus;
+  lineCount: number;
+  byteCount: number;
+  isTruncated: boolean;
+  lines: GitDiffLine[];
+}

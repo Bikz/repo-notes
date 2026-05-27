@@ -36,6 +36,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
 - Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.
 - Review changed note-like files from local Git status before handoff.
+- Preview a bounded Git diff for a selected changed doc.
 - Keep all file history in the repositories that already own those files.
 
 ## Development
@@ -90,7 +91,7 @@ To keep follow-up searches fast, Repo Notes opportunistically warms an in-memory
 
 Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
 
-Git changes run on demand against direct child repositories that have Git metadata. Change responses include changed note paths, status labels, staged/unstaged state, and index presence. They do not include file contents or diffs.
+Git changes run on demand against direct child repositories that have Git metadata. Change responses include changed note paths, status labels, staged/unstaged state, and index presence. They do not include file contents or diffs. Diff previews require an explicit changed note path, are capped by line and byte limits, and are not cached.
 
 The browser stores a small root-scoped session payload in local storage so Repo Notes can reopen to the last valid browsing context. That payload is limited to the configured root path, selected repo, selected note path, note sort, view mode, and whether the projects pane is visible; it does not include note contents, search snippets, review results, or editor drafts.
 

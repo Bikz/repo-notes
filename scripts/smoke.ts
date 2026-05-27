@@ -7,6 +7,7 @@ import type {
   DocReviewPayload,
   DocSearchPayload,
   GitChangesPayload,
+  GitDiffPayload,
   MoveNoteRequest,
   NoteFilePayload,
   WorkspaceConfig,
@@ -147,8 +148,16 @@ try {
     ),
     "git changes should report the moved destination path as untracked",
   );
+  const gitDiff = await requestJson<GitDiffPayload>(
+    `${baseUrl}/api/git/diff?path=${encodeURIComponent("alpha/docs/renamed-smoke-note.md")}&force=1`,
+  );
+  assert(gitDiff.status === "untracked", "git diff should report the moved destination status");
+  assert(
+    gitDiff.lines.some((line) => line.kind === "added" && line.text.includes("Updated smoke note")),
+    "git diff should show bounded added content for the selected changed note",
+  );
 
-  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, created, deleted, and checked git-changed notes in a disposable workspace.");
+  console.log("Smoke passed: configured, indexed, reviewed, read, updated, moved, created, deleted, checked git-changed notes, and previewed a git diff in a disposable workspace.");
 } finally {
   server.kill();
   await server.exited.catch(() => undefined);

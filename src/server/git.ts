@@ -1,8 +1,11 @@
 import { basename, extname } from "node:path";
+import { stat } from "node:fs/promises";
 import type {
   GitChangedNote,
   GitChangesPayload,
   GitChangeStatus,
+  GitDiffLine,
+  GitDiffPayload,
   NoteSummary,
   RepoSummary,
   SupportedNoteExtension,
@@ -10,6 +13,7 @@ import type {
 } from "../shared/types";
 import {
   assertAllowedNotePath,
+  assertNoSymlinkInWorkspacePath,
   assertSupportedNoteExtension,
   noteKindForExtension,
   resolveWorkspaceFilePath,
@@ -28,6 +32,8 @@ interface RawGitChange {
 }
 
 const defaultMaxChanges = 250;
+const defaultMaxDiffLines = 300;
+const defaultMaxDiffBytes = 64 * 1024;
 
 export async function getWorkspaceGitChanges(
   rootPath: string,
@@ -72,6 +78,61 @@ export async function getWorkspaceGitChanges(
   };
 }
 
+export async function getWorkspaceGitDiff(
+  rootPath: string,
+  index: WorkspaceIndex,
+  rootRelativePath: string,
+  options: { maxBytes?: number; maxLines?: number } = {},
+): Promise<GitDiffPayload> {
+  const root = resolveWorkspaceRoot(rootPath);
+  resolveWorkspaceFilePath(root, rootRelativePath);
+  const pathParts = rootRelativePath.split("/").filter(Boolean);
+  const repoName = pathParts[0] ?? "";
+  const repoRelativePath = pathParts.slice(1).join("/");
+  const repo = reposForScope(index.repos, repoName)[0];
+  if (!repo.isGitRepo) {
+    throw new Error("Repository is not a Git repository.");
+  }
+
+  assertSupportedNoteExtension(repoRelativePath);
+  assertAllowedNotePath(repoRelativePath);
+  const repoPath = resolveWorkspaceFilePath(root, repo.name);
+  const absolutePath = resolveWorkspaceFilePath(root, rootRelativePath);
+  const fileExists = await isFile(absolutePath);
+  if (fileExists) {
+    await assertNoSymlinkInWorkspacePath(root, rootRelativePath);
+  }
+
+  const rawChange = (await gitStatus(repoPath)).find(
+    (change) => change.repoRelativePath === repoRelativePath || change.previousRepoRelativePath === repoRelativePath,
+  );
+  if (!rawChange) {
+    throw new Error("No Git change found for that note.");
+  }
+
+  const status = statusForCode(rawChange.code);
+  const diffText =
+    status === "untracked" && fileExists
+      ? await gitDiff(repoPath, ["diff", "--no-index", "--no-color", "--", "/dev/null", repoRelativePath], true)
+      : await gitDiff(repoPath, ["diff", "--no-ext-diff", "--no-color", "--find-renames", "HEAD", "--", repoRelativePath]);
+  const parsedDiff = parseDiffLines(diffText, {
+    maxBytes: options.maxBytes ?? defaultMaxDiffBytes,
+    maxLines: options.maxLines ?? defaultMaxDiffLines,
+  });
+
+  return {
+    generatedAtMs: Date.now(),
+    repoName,
+    repoRelativePath,
+    rootRelativePath,
+    status,
+    lineCount: parsedDiff.lines.length,
+    byteCount: parsedDiff.byteCount,
+    isTruncated: parsedDiff.isTruncated,
+    lines: parsedDiff.lines,
+  };
+}
+
 function reposForScope(repos: RepoSummary[], repoName?: string) {
   if (!repoName) {
     return repos;
@@ -101,6 +162,54 @@ async function gitStatus(repoPath: string): Promise<RawGitChange[]> {
   }
 
   return parsePorcelainStatus(stdout);
+}
+
+async function gitDiff(repoPath: string, args: string[], allowDifferenceExit = false) {
+  const proc = Bun.spawn(["git", "-C", repoPath, ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, , exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+
+  if (exitCode !== 0 && !(allowDifferenceExit && exitCode === 1)) {
+    return "";
+  }
+
+  return stdout;
+}
+
+function parseDiffLines(diffText: string, options: { maxBytes: number; maxLines: number }) {
+  const lines: GitDiffLine[] = [];
+  let byteCount = 0;
+  let isTruncated = false;
+
+  for (const line of diffText.split(/\r?\n/)) {
+    if (line === "") {
+      continue;
+    }
+
+    const nextByteCount = byteCount + Buffer.byteLength(line, "utf8");
+    if (lines.length >= options.maxLines || nextByteCount > options.maxBytes) {
+      isTruncated = true;
+      break;
+    }
+
+    byteCount = nextByteCount;
+    lines.push({
+      kind: diffLineKind(line),
+      text: line,
+    });
+  }
+
+  return {
+    byteCount,
+    isTruncated,
+    lines,
+  };
 }
 
 function parsePorcelainStatus(output: string): RawGitChange[] {
@@ -219,6 +328,46 @@ function statusForCode(code: string): GitChangeStatus {
   }
 
   return "modified";
+}
+
+function diffLineKind(line: string): GitDiffLine["kind"] {
+  if (line.startsWith("@@")) {
+    return "hunk";
+  }
+
+  if (
+    line.startsWith("diff --git") ||
+    line.startsWith("index ") ||
+    line.startsWith("new file mode") ||
+    line.startsWith("deleted file mode") ||
+    line.startsWith("---") ||
+    line.startsWith("+++")
+  ) {
+    return "meta";
+  }
+
+  if (line.startsWith("+")) {
+    return "added";
+  }
+
+  if (line.startsWith("-")) {
+    return "removed";
+  }
+
+  return "context";
+}
+
+async function isFile(path: string) {
+  try {
+    const fileStat = await stat(path);
+    return fileStat.isFile();
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 function isStaged(code: string) {

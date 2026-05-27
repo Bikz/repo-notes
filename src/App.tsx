@@ -75,6 +75,7 @@ import type {
   DeleteNoteRequest,
   GitChangedNote,
   GitChangesPayload,
+  GitDiffPayload,
   MoveNoteRequest,
   NoteFilePayload,
   UpdateNoteRequest,
@@ -150,6 +151,8 @@ function App() {
   const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
   const [gitChanges, setGitChanges] = useState<GitChangesPayload | null>(null);
+  const [gitDiff, setGitDiff] = useState<GitDiffPayload | null>(null);
+  const [selectedGitChange, setSelectedGitChange] = useState<GitChangedNote | null>(null);
   const [reviewSeverityFilter, setReviewSeverityFilter] = useState<ReviewSeverityFilter>("all");
   const [reviewCategoryFilter, setReviewCategoryFilter] = useState<ReviewCategoryFilter>("all");
   const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
@@ -165,9 +168,11 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isLoadingGitChanges, setIsLoadingGitChanges] = useState(false);
+  const [isLoadingGitDiff, setIsLoadingGitDiff] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [gitChangesError, setGitChangesError] = useState("");
+  const [gitDiffError, setGitDiffError] = useState("");
   const [saveConflictPath, setSaveConflictPath] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -591,9 +596,12 @@ function App() {
       setDocSearch(null);
       setDocReview(null);
       setGitChanges(null);
+      setGitDiff(null);
       setSearchError("");
       setReviewError("");
       setGitChangesError("");
+      setGitDiffError("");
+      setSelectedGitChange(null);
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -620,6 +628,9 @@ function App() {
       if (!options.preserveGitChanges) {
         setGitChanges(null);
         setGitChangesError("");
+        setGitDiff(null);
+        setGitDiffError("");
+        setSelectedGitChange(null);
       }
       setSearchError("");
       setReviewError("");
@@ -729,6 +740,11 @@ function App() {
       setSelectedPath(createdFile.note.rootRelativePath);
       setNoteHistory((current) => pushNoteHistory(current, createdFile.note.rootRelativePath));
       setRepoFilter(createdFile.note.repoName);
+      setGitChanges(null);
+      setGitDiff(null);
+      setGitChangesError("");
+      setGitDiffError("");
+      setSelectedGitChange(null);
       setVisibleNoteCount(initialVisibleNoteCount);
       setMobilePane("read");
       setIsCreateOpen(false);
@@ -777,9 +793,12 @@ function App() {
       setDocSearch(null);
       setDocReview(null);
       setGitChanges(null);
+      setGitDiff(null);
       setSearchError("");
       setReviewError("");
       setGitChangesError("");
+      setGitDiffError("");
+      setSelectedGitChange(null);
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -836,9 +855,12 @@ function App() {
       setDocSearch(null);
       setDocReview(null);
       setGitChanges(null);
+      setGitDiff(null);
       setSearchError("");
       setReviewError("");
       setGitChangesError("");
+      setGitDiffError("");
+      setSelectedGitChange(null);
       setReviewSeverityFilter("all");
       setReviewCategoryFilter("all");
       setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -897,6 +919,9 @@ function App() {
       await refreshIndex({ force: true, quiet: true, preserveGitChanges: true });
       const changes = await requestJson<GitChangesPayload>(`/api/git/changes?${params.toString()}`);
       setGitChanges(changes);
+      setGitDiff(null);
+      setGitDiffError("");
+      setSelectedGitChange(null);
       setNotice(
         changes.changeCount === 0
           ? `No changed docs in ${changes.scope.label}.`
@@ -906,6 +931,25 @@ function App() {
       setGitChangesError(messageForError(nextError));
     } finally {
       setIsLoadingGitChanges(false);
+    }
+  }
+
+  async function loadGitDiff(change: GitChangedNote) {
+    setSelectedGitChange(change);
+    setIsLoadingGitDiff(true);
+    setGitDiff(null);
+    setGitDiffError("");
+    setNotice("");
+
+    try {
+      const diff = await requestJson<GitDiffPayload>(
+        `/api/git/diff?path=${encodeURIComponent(change.rootRelativePath)}&force=1`,
+      );
+      setGitDiff(diff);
+    } catch (nextError) {
+      setGitDiffError(messageForError(nextError));
+    } finally {
+      setIsLoadingGitDiff(false);
     }
   }
 
@@ -1024,9 +1068,12 @@ function App() {
     setDocSearch(null);
     setDocReview(null);
     setGitChanges(null);
+    setGitDiff(null);
     setSearchError("");
     setReviewError("");
     setGitChangesError("");
+    setGitDiffError("");
+    setSelectedGitChange(null);
     setReviewSeverityFilter("all");
     setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -1038,9 +1085,12 @@ function App() {
     setDocSearch(null);
     setDocReview(null);
     setGitChanges(null);
+    setGitDiff(null);
     setSearchError("");
     setReviewError("");
     setGitChangesError("");
+    setGitDiffError("");
+    setSelectedGitChange(null);
     setReviewSeverityFilter("all");
     setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
@@ -1380,11 +1430,14 @@ function App() {
                   role="menuitem"
                   onClick={() => {
                     setGitChanges(null);
+                    setGitDiff(null);
                     setGitChangesError("");
+                    setGitDiffError("");
+                    setSelectedGitChange(null);
                     setIsMoreOpen(false);
                     setNotice("Changed docs cleared.");
                   }}
-                  disabled={!gitChanges && !gitChangesError}
+                  disabled={!gitChanges && !gitChangesError && !gitDiff && !gitDiffError}
                 >
                   <X size={15} />
                   <span>Clear changes</span>
@@ -1628,15 +1681,14 @@ function App() {
                   ) : (
                     <div className="review-issues change-list">
                       {gitChanges.changes.map((change) => {
-                        const isOpenable = change.status !== "deleted" && noteByRootRelativePath.has(change.rootRelativePath);
+                        const isSelected = selectedGitChange?.id === change.id;
 
                         return (
                           <button
-                            className={`review-issue change-row is-${change.status}`}
+                            className={`review-issue change-row is-${change.status} ${isSelected ? "is-selected" : ""}`}
                             key={change.id}
                             type="button"
-                            onClick={() => openGitChange(change)}
-                            disabled={!isOpenable}
+                            onClick={() => void loadGitDiff(change)}
                           >
                             <span className="change-status">{gitChangeStatusLabel(change.status)}</span>
                             <span className="review-issue-main">
@@ -1657,6 +1709,59 @@ function App() {
                         );
                       })}
                       {cappedGitChangesMessage && <div className="review-more">{cappedGitChangesMessage}</div>}
+                    </div>
+                  )}
+
+                  {(selectedGitChange || isLoadingGitDiff || gitDiffError || gitDiff) && (
+                    <div className="diff-preview">
+                      <div className="diff-preview-header">
+                        <div>
+                          <p className="eyebrow">Diff preview</p>
+                          <strong>{selectedGitChange?.repoRelativePath ?? "Changed doc"}</strong>
+                        </div>
+                        <button
+                          className="subtle-action"
+                          type="button"
+                          onClick={() => selectedGitChange && openGitChange(selectedGitChange)}
+                          disabled={
+                            !selectedGitChange ||
+                            selectedGitChange.status === "deleted" ||
+                            !noteByRootRelativePath.has(selectedGitChange.rootRelativePath)
+                          }
+                        >
+                          Open file
+                        </button>
+                      </div>
+
+                      {isLoadingGitDiff && (
+                        <div className="review-message">
+                          <Loader2 className="spin" size={16} />
+                          <span>Loading diff...</span>
+                        </div>
+                      )}
+
+                      {gitDiffError && (
+                        <div className="review-message is-error">
+                          <span>{gitDiffError}</span>
+                        </div>
+                      )}
+
+                      {gitDiff && !isLoadingGitDiff && (
+                        <>
+                          <pre className="diff-lines" aria-label={`Diff for ${gitDiff.repoRelativePath}`}>
+                            {gitDiff.lines.map((line, index) => (
+                              <span className={`diff-line is-${line.kind}`} key={`${line.kind}-${index}-${line.text}`}>
+                                {line.text}
+                              </span>
+                            ))}
+                          </pre>
+                          {gitDiff.isTruncated && (
+                            <div className="review-more">
+                              Showing first {gitDiff.lineCount} diff lines.
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </>

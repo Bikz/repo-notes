@@ -920,9 +920,108 @@ button {
   background: rgba(91, 141, 239, 0.16);
 }
 
+.change-row.is-selected {
+  border-color: rgba(244, 211, 93, 0.36);
+  background: #252321;
+}
+
 .change-stage {
   color: #96969d;
   background: #222225;
+}
+
+.diff-preview {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  background: #151516;
+}
+
+.diff-preview-header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diff-preview-header > div {
+  min-width: 0;
+}
+
+.diff-preview-header strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #ececef;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtle-action {
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+  padding: 0 10px;
+  color: #dedee1;
+  background: #222224;
+  font-size: 11px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.subtle-action:hover:not(:disabled) {
+  background: #2a2a2d;
+}
+
+.subtle-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.diff-lines {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin: 0;
+  padding: 9px 0;
+  color: #cbcbcf;
+  background: #101011;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.diff-line {
+  display: block;
+  min-width: max-content;
+  padding: 0 12px;
+  white-space: pre;
+}
+
+.diff-line.is-added {
+  color: #bce7c7;
+  background: rgba(82, 180, 114, 0.08);
+}
+
+.diff-line.is-removed {
+  color: #ffb4aa;
+  background: rgba(255, 93, 78, 0.08);
+}
+
+.diff-line.is-hunk {
+  color: #b7d2ff;
+}
+
+.diff-line.is-meta {
+  color: #85858b;
 }
 
 .severity-dot {

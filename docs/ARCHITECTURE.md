@@ -35,6 +35,7 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 - `GET /api/review?repo=<repoName>`: reviews one repository.
 - `GET /api/git/changes`: returns metadata-only Git status for changed note-like files across Git repositories.
 - `GET /api/git/changes?repo=<repoName>`: returns metadata-only Git status for one repository.
+- `GET /api/git/diff?path=<rootRelativePath>`: returns a bounded Git diff preview for one changed note.
 - `GET /api/files?path=<rootRelativePath>`: reads one supported note file.
 - `PUT /api/files`: updates an existing note file in place.
 - `PATCH /api/files`: renames or moves an existing note within its current repository.
@@ -77,7 +78,9 @@ Review payloads are metadata-only: category, severity, repository, root-relative
 
 Git changes are an on-demand, read-only handoff workflow. The API scopes work to indexed direct-child repositories that have Git metadata, runs `git status --porcelain=v1 -z --untracked-files=all` with non-shell arguments, filters results to supported note extensions and allowed note paths, and returns changed-path metadata only. Deleted notes are validated by path because they no longer exist on disk. Existing untracked or modified notes are still opened through the normal `/api/files` path, so content reads keep the same workspace and symlink checks as the rest of the app.
 
-The client shows changed docs in the middle pane with status labels and staged/unstaged state. Clicking an openable changed doc follows the normal note-opening flow; deleted docs stay visible as handoff context but are not opened from Repo Notes.
+Diff previews require an explicit root-relative changed note path. The server validates the path against the selected workspace, repository, supported note extension, and ignored-directory rules, rejects symlinked existing files before asking Git for a diff, and returns capped line metadata. Tracked files use `git diff --no-ext-diff --no-color --find-renames HEAD -- <path>`. Untracked files use `git diff --no-index --no-color -- /dev/null <path>` so the preview can still show the pending document body without scanning unrelated files.
+
+The client shows changed docs in the middle pane with status labels and staged/unstaged state. Clicking a changed doc loads its bounded diff preview. Opening a changed file remains a separate action and follows the normal note-opening flow; deleted docs stay visible as handoff context but are not opened from Repo Notes.
 
 ## Preview Navigation
 

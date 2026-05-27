@@ -163,3 +163,10 @@
 - Browser proof used a disposable Git repo with modified, untracked, and deleted docs, opened the changed-docs panel, opened the modified doc from the panel, verified the API stayed metadata-only, and saved:
   - `output/playwright/repo-notes-git-changes-panel.png`
 - Git changes validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Continued Git handoff by adding explicit, bounded diff previews for changed docs.
+- Added `GET /api/git/diff?path=...` with workspace/repo/note-path validation, symlink checks for existing changed files, tracked/deleted diff support, untracked note diff support through `git diff --no-index`, and line/byte caps.
+- Updated the Changes panel so clicking a changed doc loads a diff preview inline, while opening the file is a separate action that still uses the normal note-opening flow.
+- Extended smoke coverage to preview a Git diff for a disposable untracked moved note and verify the added line appears in the bounded diff payload.
+- Browser proof used a disposable Git repo, loaded the modified doc diff from the Changes panel, verified removed and added lines, opened the file from the diff preview, and saved:
+  - `output/playwright/repo-notes-git-diff-preview.png`
+- Git diff validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
