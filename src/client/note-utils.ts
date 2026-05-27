@@ -16,6 +16,7 @@ export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
 export type AppShortcut = "save" | "focus-search" | "new-note" | "close-panel";
 export type CreateTemplateId = "blank" | "prd" | "rfc" | "decision" | "runbook";
+export type MarkdownFormatAction = "heading" | "bold" | "list" | "link" | "code";
 
 export interface CreateDraftFields {
   repoName: string;
@@ -29,6 +30,12 @@ export interface CreateTemplateDefinition {
   label: string;
   defaultPath: string;
   content: string;
+}
+
+export interface MarkdownFormatResult {
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
 }
 
 interface ShortcutKeyEvent {
@@ -227,6 +234,42 @@ export function applyCreateTemplate(
   };
 }
 
+export function applyMarkdownFormat(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  action: MarkdownFormatAction,
+): MarkdownFormatResult {
+  const start = clampSelectionOffset(Math.min(selectionStart, selectionEnd), value.length);
+  const end = clampSelectionOffset(Math.max(selectionStart, selectionEnd), value.length);
+  const selectedText = value.slice(start, end);
+
+  switch (action) {
+    case "heading":
+      return prefixCurrentLines(value, start, end, "## ", true);
+    case "list":
+      return prefixCurrentLines(value, start, end, "- ");
+    case "bold":
+      return replaceSelection(value, start, end, selectedText || "strong text", "**", "**");
+    case "link": {
+      const text = selectedText || "link text";
+      const inserted = `[${text}](url)`;
+      const nextValue = replaceRange(value, start, end, inserted);
+      const urlStart = start + text.length + 3;
+      return {
+        value: nextValue,
+        selectionStart: urlStart,
+        selectionEnd: urlStart + 3,
+      };
+    }
+    case "code":
+      if (selectedText.includes("\n")) {
+        return replaceSelection(value, start, end, selectedText || "code", "```\n", "\n```");
+      }
+      return replaceSelection(value, start, end, selectedText || "code", "`", "`");
+  }
+}
+
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -240,6 +283,58 @@ export function filterNotes(notes: NoteSummary[], repoFilter: string, query: str
 
     return repoMatches && queryMatches;
   });
+}
+
+function clampSelectionOffset(offset: number, length: number) {
+  if (!Number.isFinite(offset)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(Math.floor(offset), 0), length);
+}
+
+function replaceRange(value: string, start: number, end: number, replacement: string) {
+  return `${value.slice(0, start)}${replacement}${value.slice(end)}`;
+}
+
+function replaceSelection(
+  value: string,
+  start: number,
+  end: number,
+  selectedText: string,
+  prefix: string,
+  suffix: string,
+): MarkdownFormatResult {
+  const inserted = `${prefix}${selectedText}${suffix}`;
+  return {
+    value: replaceRange(value, start, end, inserted),
+    selectionStart: start + prefix.length,
+    selectionEnd: start + prefix.length + selectedText.length,
+  };
+}
+
+function prefixCurrentLines(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  prefix: string,
+  shiftSelectionStart = false,
+): MarkdownFormatResult {
+  const lineStart = value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
+  const selectedEnd = selectionEnd > selectionStart && value[selectionEnd - 1] === "\n" ? selectionEnd - 1 : selectionEnd;
+  const nextLineBreak = value.indexOf("\n", selectedEnd);
+  const lineEnd = nextLineBreak === -1 ? value.length : nextLineBreak;
+  const target = value.slice(lineStart, lineEnd);
+  const lines = target.length === 0 ? [""] : target.split("\n");
+  const prefixed = lines.map((line) => (line.startsWith(prefix) ? line : `${prefix}${line}`)).join("\n");
+  const nextValue = replaceRange(value, lineStart, lineEnd, prefixed);
+  const addedLength = prefixed.length - target.length;
+
+  return {
+    value: nextValue,
+    selectionStart: selectionStart + (shiftSelectionStart ? prefix.length : 0),
+    selectionEnd: selectionEnd + addedLength,
+  };
 }
 
 export function sortNotes(notes: NoteSummary[], mode: NoteSortMode) {

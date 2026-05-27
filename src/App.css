@@ -1325,6 +1325,35 @@ button {
   background: #3a3a3c;
 }
 
+.markdown-toolbar {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.markdown-toolbar button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  color: #b8b8bd;
+  background: transparent;
+  cursor: pointer;
+}
+
+.markdown-toolbar button:hover {
+  color: #f2f2f2;
+  background: #333335;
+}
+
 .note-date {
   padding: 18px 28px 0;
   color: #858585;
@@ -1772,6 +1801,7 @@ button {
 
   .reader-actions {
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .reader-body.mode-split {

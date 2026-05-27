@@ -46,6 +46,10 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 
 The client renders Markdown and HTML in the browser with sanitization. The server treats note content as local text and does not transform it.
 
+## Editing
+
+The Markdown editor is a controlled browser textarea backed by the active note content loaded from `/api/files`. Formatting toolbar actions are client-side text transforms over the current textarea selection; they update only the in-memory draft until the user explicitly saves through `PUT /api/files`, preserving the same modified-time conflict checks as manual typing.
+
 ## Creation Templates
 
 The new-note drawer owns lightweight document templates for common product-team docs: blank notes, PRDs, RFCs, decision records, and runbooks. Templates are client-side defaults only. Selecting one updates the draft path and content fields, and the final create action still uses the normal `POST /api/files` API with the same workspace, repository, extension, ignored-directory, no-overwrite, and symlink-boundary checks as any other created note.

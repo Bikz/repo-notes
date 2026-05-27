@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import type { DocReviewIssue, DocSearchResult, GitChangesPayload, NoteSummary, RepoSummary } from "../shared/types";
 import {
   appShortcutForKey,
+  applyMarkdownFormat,
   applyCreateTemplate,
   createNoteTemplates,
   createTemplateById,
@@ -122,6 +123,58 @@ test("isCreateDraftDirty compares against the selected template defaults", () =>
       content: createTemplateById("prd").content,
     }),
   ).toBe(true);
+});
+
+test("applyMarkdownFormat wraps selected text for bold, link, and inline code actions", () => {
+  expect(applyMarkdownFormat("Launch plan", 0, 6, "bold")).toEqual({
+    value: "**Launch** plan",
+    selectionStart: 2,
+    selectionEnd: 8,
+  });
+  expect(applyMarkdownFormat("Launch plan", 0, 6, "link")).toEqual({
+    value: "[Launch](url) plan",
+    selectionStart: 9,
+    selectionEnd: 12,
+  });
+  expect(applyMarkdownFormat("Launch plan", 7, 11, "code")).toEqual({
+    value: "Launch `plan`",
+    selectionStart: 8,
+    selectionEnd: 12,
+  });
+});
+
+test("applyMarkdownFormat inserts useful placeholders at an empty selection", () => {
+  expect(applyMarkdownFormat("", 0, 0, "bold")).toEqual({
+    value: "**strong text**",
+    selectionStart: 2,
+    selectionEnd: 13,
+  });
+  expect(applyMarkdownFormat("", 0, 0, "link")).toEqual({
+    value: "[link text](url)",
+    selectionStart: 12,
+    selectionEnd: 15,
+  });
+});
+
+test("applyMarkdownFormat prefixes headings and list items at line boundaries", () => {
+  expect(applyMarkdownFormat("Roadmap", 0, 7, "heading")).toEqual({
+    value: "## Roadmap",
+    selectionStart: 3,
+    selectionEnd: 10,
+  });
+  expect(applyMarkdownFormat("One\nTwo", 0, 7, "list")).toEqual({
+    value: "- One\n- Two",
+    selectionStart: 0,
+    selectionEnd: 11,
+  });
+});
+
+test("applyMarkdownFormat uses fenced code for multiline selections", () => {
+  expect(applyMarkdownFormat("one\ntwo", 0, 7, "code")).toEqual({
+    value: "```\none\ntwo\n```",
+    selectionStart: 4,
+    selectionEnd: 11,
+  });
 });
 
 test("groupNotesByLocation groups all docs by repo and selected repos by top folder", () => {

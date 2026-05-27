@@ -1,14 +1,19 @@
 import DOMPurify from "dompurify";
 import {
   ArrowLeft,
+  Bold,
   Check,
   ChevronLeft,
   ChevronRight,
+  Code2,
   Copy,
   FilePenLine,
   FilePlus2,
   Folder,
   GitCompare,
+  Heading2,
+  Link,
+  List,
   ListFilter,
   ListTree,
   Loader2,
@@ -32,11 +37,13 @@ import type {
   NoteOutlineItem,
   NoteSortMode,
   CreateTemplateId,
+  MarkdownFormatAction,
   SessionViewMode,
   WorkspaceSessionState,
 } from "./client/note-utils";
 import {
   appShortcutForKey,
+  applyMarkdownFormat,
   applyCreateTemplate,
   createNoteTemplates,
   createTemplateById,
@@ -134,6 +141,17 @@ const reviewCategoryOptions: DocReviewCategory[] = [
   "duplicate-title",
   "stale-doc",
   "large-file",
+];
+const markdownFormatActions: Array<{
+  action: MarkdownFormatAction;
+  label: string;
+  icon: typeof Heading2;
+}> = [
+  { action: "heading", label: "Heading", icon: Heading2 },
+  { action: "bold", label: "Bold", icon: Bold },
+  { action: "list", label: "Bulleted list", icon: List },
+  { action: "link", label: "Link", icon: Link },
+  { action: "code", label: "Code", icon: Code2 },
 ];
 
 function App() {
@@ -1226,6 +1244,24 @@ function App() {
     setNotice(`Opened ${item.title} at line ${item.line}.`);
   }
 
+  function applyEditorFormat(action: MarkdownFormatAction) {
+    const textarea = editorRef.current;
+    const selectionStart = textarea?.selectionStart ?? editorValue.length;
+    const selectionEnd = textarea?.selectionEnd ?? editorValue.length;
+    const nextFormat = applyMarkdownFormat(editorValue, selectionStart, selectionEnd, action);
+
+    setEditorValue(nextFormat.value);
+    window.requestAnimationFrame(() => {
+      const nextTextarea = editorRef.current;
+      if (!nextTextarea) {
+        return;
+      }
+
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(nextFormat.selectionStart, nextFormat.selectionEnd);
+    });
+  }
+
   function handleRenderedNoteClick(event: MouseEvent<HTMLElement>) {
     if (!selectedNote) {
       return;
@@ -1992,6 +2028,22 @@ function App() {
                   {isDirty && <span className="dirty-pill">Unsaved changes</span>}
                 </div>
                 <div className="reader-actions">
+                  {activeFile?.note.kind === "markdown" && viewMode !== "preview" && (
+                    <div className="markdown-toolbar" aria-label="Markdown formatting">
+                      {markdownFormatActions.map(({ action, label, icon: Icon }) => (
+                        <button
+                          key={action}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => applyEditorFormat(action)}
+                          aria-label={label}
+                          title={label}
+                        >
+                          <Icon size={15} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="segmented" aria-label="View mode">
                     {(["preview", "split", "edit"] as ViewMode[]).map((mode) => (
                       <button

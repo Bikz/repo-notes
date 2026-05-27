@@ -25,7 +25,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Open indexed local Markdown links directly inside Repo Notes.
 - Move back and forward through opened notes while exploring docs.
 - Render local preview images through the workspace-safe asset endpoint.
-- Edit existing files in place.
+- Edit existing files in place with a compact Markdown formatting toolbar for headings, bold text, lists, links, and code.
 - Rename or move notes inside their owning repository.
 - Delete obsolete notes with disk-change protection.
 - Recover cleanly when a note changed on disk before saving.

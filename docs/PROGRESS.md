@@ -175,3 +175,8 @@
 - Browser proof used a disposable workspace, selected the PRD template in the New note drawer, verified the suggested path/content, created the file on disk, and opened the rendered note:
   - `output/playwright/repo-notes-create-template.png`
 - Creation template validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Started editor ergonomics work so product teams can structure Markdown docs without leaving the local notes surface or memorizing every syntax wrapper.
+- Added a compact Markdown formatting toolbar for heading, bold, bulleted list, link, and code actions. The toolbar transforms the current textarea selection client-side and keeps the existing explicit-save and stale-write protection model intact.
+- Browser proof used a disposable workspace, selected text in a Markdown note, applied bold formatting from the toolbar, saved the note, and verified the Markdown wrapper persisted on disk:
+  - `output/playwright/repo-notes-markdown-toolbar.png`
+- Markdown toolbar validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
