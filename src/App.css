@@ -1362,7 +1362,8 @@ button {
   text-align: center;
 }
 
-.note-outline {
+.note-outline,
+.note-backlinks {
   min-height: 48px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1371,6 +1372,11 @@ button {
   padding: 10px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #0d0d0e;
+}
+
+.note-backlinks {
+  min-height: 44px;
+  background: #101011;
 }
 
 .note-outline-label {
@@ -1391,7 +1397,8 @@ button {
   scrollbar-width: thin;
 }
 
-.outline-chip {
+.outline-chip,
+.backlink-chip {
   max-width: 220px;
   height: 30px;
   flex: 0 0 auto;
@@ -1408,22 +1415,45 @@ button {
   cursor: pointer;
 }
 
-.outline-chip:hover {
+.outline-chip:hover,
+.backlink-chip:hover {
   border-color: rgba(255, 255, 255, 0.15);
   background: #242426;
 }
 
-.outline-chip span {
+.outline-chip span,
+.backlink-chip span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.outline-chip em {
+.outline-chip em,
+.backlink-chip em {
   color: #85858b;
   font-style: normal;
   font-weight: 760;
+}
+
+.backlink-chip {
+  max-width: 260px;
+}
+
+.backlink-state {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #9f9fa5;
+  background: #18181a;
+  font-size: 12px;
+  font-weight: 690;
+}
+
+.backlink-state.is-error {
+  color: #ffd8df;
 }
 
 .outline-chip.level-2 {
@@ -1812,7 +1842,8 @@ button {
     padding: 18px 20px 36px;
   }
 
-  .note-outline {
+  .note-outline,
+  .note-backlinks {
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 10px 12px;

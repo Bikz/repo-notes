@@ -100,6 +100,21 @@ export interface DocReviewPayload {
   issues: DocReviewIssue[];
 }
 
+export interface DocBacklink {
+  id: string;
+  source: NoteSummary;
+  line: number;
+}
+
+export interface DocBacklinksPayload {
+  generatedAtMs: number;
+  target: NoteSummary;
+  backlinkCount: number;
+  returnedBacklinkCount: number;
+  isTruncated: boolean;
+  backlinks: DocBacklink[];
+}
+
 export interface NoteFilePayload {
   note: NoteSummary;
   content: string;

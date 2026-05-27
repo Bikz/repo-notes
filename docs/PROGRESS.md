@@ -193,3 +193,10 @@
 - Browser proof used a disposable workspace, clicked a missing local Markdown link in preview, verified the New note drawer was prefilled with the resolved target path and anchor heading, created the linked note, and confirmed the file opened from disk:
   - `output/playwright/repo-notes-create-missing-link.png`
 - Missing-link creation validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Continued the document-graph workflow so product teams can understand where a note is referenced without navigating nested folders.
+- Added metadata-only `GET /api/backlinks?path=...` support for Markdown notes. It scopes backlink discovery to same-repository Markdown files from the current index, resolves relative and repo-absolute Markdown links, skips images/external links, reports line numbers, caps returned backlinks, and rejects symlinked indexed paths before reading content.
+- Added a reader backlinks panel beside the outline. Clicking a backlink opens the source note, switches to split view, focuses the editor, and jumps to the link line.
+- Extended smoke coverage to verify backlink discovery in a disposable workspace.
+- Browser proof used a disposable workspace and isolated config path, selected a linked target note, verified two backlink chips with line numbers, clicked one, and confirmed the source note opened in split mode at the backlink line:
+  - `output/playwright/repo-notes-backlinks-panel.png`
+- Backlink validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, and Playwright browser proof.

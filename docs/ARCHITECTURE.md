@@ -33,6 +33,7 @@ Before file contents are read, written, moved, deleted, created, or reviewed, Re
 - `GET /api/search?q=<query>&repo=<repoName>`: searches one repository.
 - `GET /api/review`: reviews all indexed docs for local hygiene issues and returns bounded metadata-only findings.
 - `GET /api/review?repo=<repoName>`: reviews one repository.
+- `GET /api/backlinks?path=<rootRelativePath>`: returns same-repo Markdown notes that link to one selected note.
 - `GET /api/git/changes`: returns metadata-only Git status for changed note-like files across Git repositories.
 - `GET /api/git/changes?repo=<repoName>`: returns metadata-only Git status for one repository.
 - `GET /api/git/diff?path=<rootRelativePath>`: returns a bounded Git diff preview for one changed note.
@@ -81,6 +82,12 @@ After an index response, the API queues a best-effort in-memory search-content w
 Docs review is an on-demand workflow, separate from indexing, because it reads document bodies to inspect markers and Markdown links. The review scanner uses the current index as its scope, keeps reads concurrency-limited, ignores remote links and anchors-only links, checks local Markdown targets with workspace-relative safety resolution, and returns a capped list of findings.
 
 Review payloads are metadata-only: category, severity, repository, root-relative path, title, line, target path, related counts, and aggregate totals. They intentionally do not include snippets or full note contents.
+
+## Backlinks
+
+Backlinks are an on-demand reader workflow for selected notes. The API accepts one indexed root-relative target path, scopes candidates to Markdown notes in the same repository, checks symlink safety before reading each candidate, resolves relative and repo-absolute Markdown links, ignores image and external links, and returns capped source note metadata with line numbers.
+
+The client shows backlinks beside the document outline. Clicking a backlink uses the same note-opening path as search and review navigation, switches to an editor-visible split view, focuses the textarea, and jumps to the source line so product teams can inspect or correct the reference in context.
 
 ## Git Changes
 

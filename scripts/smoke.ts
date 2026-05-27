@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
   DeleteNotePayload,
+  DocBacklinksPayload,
   DeleteNoteRequest,
   DocReviewPayload,
   DocSearchPayload,
@@ -61,6 +62,15 @@ try {
   );
   assert(search.searchedNotes === 3, "search should scan indexed notes in the selected repo");
   assert(search.results.some((result) => result.note.rootRelativePath === "alpha/docs/README.md"), "search should find body matches");
+
+  const backlinks = await requestJson<DocBacklinksPayload>(
+    `${baseUrl}/api/backlinks?path=${encodeURIComponent("alpha/docs/page.html")}&force=1`,
+  );
+  assert(backlinks.target.rootRelativePath === "alpha/docs/page.html", "backlinks target should match");
+  assert(
+    backlinks.backlinks.some((backlink) => backlink.source.rootRelativePath === "alpha/docs/README.md"),
+    "backlinks should report README as linking to the HTML page",
+  );
 
   const readPayload = await requestJson<NoteFilePayload>(
     `${baseUrl}/api/files?path=${encodeURIComponent("alpha/docs/README.md")}`,
@@ -170,7 +180,7 @@ async function seedWorkspace(path: string) {
   await mkdir(join(path, "alpha", "node_modules", "pkg"), { recursive: true });
   await writeFile(
     join(path, "alpha", "docs", "README.md"),
-    "# Smoke note\n\nSee [missing](missing.md).\nTODO: smoke follow-up.\n",
+    "# Smoke note\n\nSee [missing](missing.md) and [page](page.html).\nTODO: smoke follow-up.\n",
     "utf8",
   );
   await writeFile(join(path, "alpha", "docs", "page.html"), "<h1>Smoke page</h1>", "utf8");

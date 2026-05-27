@@ -77,6 +77,8 @@ import {
 import type { ReviewCategoryFilter, ReviewSeverityFilter } from "./client/note-utils";
 import type {
   CreateNoteRequest,
+  DocBacklink,
+  DocBacklinksPayload,
   DocReviewCategory,
   DocSearchPayload,
   DocSearchResult,
@@ -176,6 +178,7 @@ function App() {
   const [moveForm, setMoveForm] = useState<MoveFormState>(emptyMoveForm);
   const [docSearch, setDocSearch] = useState<DocSearchPayload | null>(null);
   const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
+  const [docBacklinks, setDocBacklinks] = useState<DocBacklinksPayload | null>(null);
   const [gitChanges, setGitChanges] = useState<GitChangesPayload | null>(null);
   const [gitDiff, setGitDiff] = useState<GitDiffPayload | null>(null);
   const [selectedGitChange, setSelectedGitChange] = useState<GitChangedNote | null>(null);
@@ -193,10 +196,12 @@ function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isLoadingBacklinks, setIsLoadingBacklinks] = useState(false);
   const [isLoadingGitChanges, setIsLoadingGitChanges] = useState(false);
   const [isLoadingGitDiff, setIsLoadingGitDiff] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [backlinksError, setBacklinksError] = useState("");
   const [gitChangesError, setGitChangesError] = useState("");
   const [gitDiffError, setGitDiffError] = useState("");
   const [saveConflictPath, setSaveConflictPath] = useState("");
@@ -401,6 +406,44 @@ function App() {
       isCancelled = true;
     };
   }, [selectedPath]);
+
+  useEffect(() => {
+    if (!activeFile || !workspaceIndex) {
+      return;
+    }
+
+    let isCancelled = false;
+    const targetPath = activeFile.note.rootRelativePath;
+
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        setIsLoadingBacklinks(true);
+        setBacklinksError("");
+      }
+    });
+
+    void requestJson<DocBacklinksPayload>(`/api/backlinks?path=${encodeURIComponent(targetPath)}`)
+      .then((backlinks) => {
+        if (!isCancelled) {
+          setDocBacklinks(backlinks);
+        }
+      })
+      .catch((nextError) => {
+        if (!isCancelled) {
+          setBacklinksError(messageForError(nextError));
+          setDocBacklinks(null);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingBacklinks(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeFile, workspaceIndex]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const activeDocSearch = useMemo(() => {
@@ -1260,6 +1303,16 @@ function App() {
     setViewMode((current) => (current === "edit" ? "edit" : "split"));
     setPendingLineTarget({ rootRelativePath: selectedNote.rootRelativePath, line: item.line });
     setNotice(`Opened ${item.title} at line ${item.line}.`);
+  }
+
+  function openBacklink(backlink: DocBacklink) {
+    if (!openNote(backlink.source, { repoName: backlink.source.repoName })) {
+      return;
+    }
+
+    setViewMode((current) => (current === "edit" ? "edit" : "split"));
+    setPendingLineTarget({ rootRelativePath: backlink.source.rootRelativePath, line: backlink.line });
+    setNotice(`Opened ${backlink.source.title} at backlink line ${backlink.line}.`);
   }
 
   function repoRelativePathsForCreateRepo(repoName: string) {
@@ -2144,6 +2197,36 @@ function App() {
                         <em>{item.line}</em>
                       </button>
                     ))}
+                  </div>
+                </nav>
+              )}
+              {(isLoadingBacklinks || backlinksError || (docBacklinks?.backlinkCount ?? 0) > 0) && (
+                <nav className="note-backlinks" aria-label="Backlinks">
+                  <div className="note-outline-label">
+                    <Link size={14} />
+                    <span>Backlinks</span>
+                  </div>
+                  <div className="note-outline-list">
+                    {isLoadingBacklinks && <span className="backlink-state">Checking links...</span>}
+                    {backlinksError && <span className="backlink-state is-error">{backlinksError}</span>}
+                    {!isLoadingBacklinks &&
+                      !backlinksError &&
+                      docBacklinks?.backlinks.map((backlink) => (
+                        <button
+                          className="backlink-chip"
+                          key={backlink.id}
+                          type="button"
+                          onClick={() => openBacklink(backlink)}
+                        >
+                          <span>{backlink.source.title}</span>
+                          <em>{backlink.line}</em>
+                        </button>
+                      ))}
+                    {!isLoadingBacklinks && !backlinksError && docBacklinks?.isTruncated && (
+                      <span className="backlink-state">
+                        Showing first {docBacklinks.returnedBacklinkCount} of {docBacklinks.backlinkCount}
+                      </span>
+                    )}
                   </div>
                 </nav>
               )}

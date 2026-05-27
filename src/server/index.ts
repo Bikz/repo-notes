@@ -8,6 +8,7 @@ import {
   writeNoteFile,
 } from "./file-store";
 import { resolvePreviewAsset } from "./assets";
+import { getWorkspaceBacklinks } from "./backlinks";
 import { loadWorkspaceConfig, saveWorkspaceConfig } from "./config";
 import { getWorkspaceGitChanges, getWorkspaceGitDiff } from "./git";
 import { getWorkspaceIndex } from "./index-cache";
@@ -140,6 +141,25 @@ async function handleApiRequest(request: Request, url: URL) {
     });
 
     return jsonResponse(await searchWorkspaceDocs(config.rootPath, index, { query, repoName }));
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/backlinks") {
+    const config = await loadWorkspaceConfig();
+    if (!config.rootExists) {
+      throw new HttpError("Workspace root does not exist.", 400);
+    }
+
+    const rootRelativePath = url.searchParams.get("path");
+    if (!rootRelativePath) {
+      throw new HttpError("path is required.", 400);
+    }
+
+    const index = await getWorkspaceIndex(config.rootPath, {
+      backgroundRefresh: url.searchParams.get("background") === "1",
+      force: url.searchParams.get("force") === "1",
+    });
+
+    return jsonResponse(await getWorkspaceBacklinks(config.rootPath, index, rootRelativePath));
   }
 
   if (request.method === "GET" && url.pathname === "/api/assets") {
