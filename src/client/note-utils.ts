@@ -57,6 +57,12 @@ export interface PreviewLinkTarget {
   anchor?: string;
 }
 
+export interface MissingPreviewLinkTarget {
+  repoName: string;
+  repoRelativePath: string;
+  anchor?: string;
+}
+
 export interface NoteGroup {
   title: string;
   detail?: string;
@@ -668,6 +674,26 @@ export function resolvePreviewLinkTarget(
   return anchor ? { note: linkedNote, anchor } : { note: linkedNote };
 }
 
+export function resolveMissingPreviewLinkTarget(
+  currentNote: NoteSummary,
+  notes: NoteSummary[],
+  href: string,
+): MissingPreviewLinkTarget | null {
+  const target = resolvePreviewLinkPath(currentNote, href);
+  if (!target || !isSupportedLinkedNotePath(target.repoRelativePath)) {
+    return null;
+  }
+
+  const rootRelativePath = `${target.repoName}/${target.repoRelativePath}`;
+  if (notes.some((note) => note.rootRelativePath === rootRelativePath)) {
+    return null;
+  }
+
+  return target.anchor
+    ? { repoName: target.repoName, repoRelativePath: target.repoRelativePath, anchor: target.anchor }
+    : { repoName: target.repoName, repoRelativePath: target.repoRelativePath };
+}
+
 export function isExternalPreviewHref(href: string) {
   return href.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(href);
 }
@@ -821,12 +847,40 @@ function resolveRepoRelativeLinkPath(currentRepoRelativePath: string, hrefPath: 
   return targetParts.length > 0 ? targetParts.join("/") : null;
 }
 
+function resolvePreviewLinkPath(currentNote: NoteSummary, href: string): MissingPreviewLinkTarget | null {
+  const trimmedHref = href.trim();
+  if (!trimmedHref || isExternalPreviewHref(trimmedHref) || trimmedHref.startsWith("/")) {
+    return null;
+  }
+
+  const [rawPath = "", rawAnchor] = trimmedHref.split("#", 2);
+  const anchor = decodeUriComponentSafe(rawAnchor ?? "");
+
+  if (!rawPath) {
+    return null;
+  }
+
+  const decodedPath = decodeUriComponentSafe(rawPath.split("?")[0] ?? "");
+  const targetRepoRelativePath = resolveRepoRelativeLinkPath(currentNote.repoRelativePath, decodedPath);
+  if (!targetRepoRelativePath) {
+    return null;
+  }
+
+  return anchor
+    ? { repoName: currentNote.repoName, repoRelativePath: targetRepoRelativePath, anchor }
+    : { repoName: currentNote.repoName, repoRelativePath: targetRepoRelativePath };
+}
+
 function decodeUriComponentSafe(value: string) {
   try {
     return decodeURIComponent(value);
   } catch {
     return value;
   }
+}
+
+function isSupportedLinkedNotePath(path: string) {
+  return /\.(html?|md|mdx|markdown|txt)$/i.test(path);
 }
 
 function isSupportedPreviewImageSource(sourcePath: string) {

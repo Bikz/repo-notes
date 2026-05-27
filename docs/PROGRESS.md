@@ -188,3 +188,8 @@
 - Browser proof used a disposable workspace with an existing `docs/prd/new-prd.md`, selected the PRD template, verified the drawer suggested `docs/prd/new-prd-2.md`, created the second PRD, and confirmed the original file was unchanged:
   - `output/playwright/repo-notes-unique-template-path.png`
 - Collision-aware template path validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Started the linked-doc authoring workflow so missing same-repo Markdown links can turn into real files from the reader instead of ending at an error.
+- Added client-side resolution for supported missing local note links. Clicking one opens the New note drawer prefilled with the target repo-relative path and starter content while keeping final creation behind the existing safe `POST /api/files` path.
+- Browser proof used a disposable workspace, clicked a missing local Markdown link in preview, verified the New note drawer was prefilled with the resolved target path and anchor heading, created the linked note, and confirmed the file opened from disk:
+  - `output/playwright/repo-notes-create-missing-link.png`
+- Missing-link creation validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.

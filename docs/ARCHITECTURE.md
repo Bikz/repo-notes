@@ -94,6 +94,8 @@ The client shows changed docs in the middle pane with status labels and staged/u
 
 The rendered reader intercepts Markdown and HTML preview link clicks in the browser. External links are opened outside the current app tab. Local relative links only open inside Repo Notes when they resolve to a note already present in the current index, and all resulting file reads still go through the normal `/api/files` safety path. Missing local links are surfaced as UI errors instead of navigating the Vite app to an arbitrary relative URL.
 
+When a missing local link resolves to a supported note-like path inside the same repository, the client can open the New note drawer prefilled with that repo-relative target path and starter content. The eventual write still goes through `POST /api/files`, so unsupported extensions, ignored directories, traversal, existing destinations, and symlinked parent paths remain server-enforced.
+
 Local preview image sources are rewritten to `/api/assets?note=<rootRelativePath>&src=<relativeImagePath>`. The asset endpoint resolves image paths relative to the current note, requires the target to remain inside the selected repository, rejects symlinked path segments, limits served assets to common image extensions, and streams the file without adding it to the note index or metadata cache.
 
 ## Move/Rename

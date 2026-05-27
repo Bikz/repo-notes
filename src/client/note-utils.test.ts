@@ -24,6 +24,7 @@ import {
   previewAssetApiPath,
   pushNoteHistory,
   restoreWorkspaceSession,
+  resolveMissingPreviewLinkTarget,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -519,6 +520,32 @@ test("resolvePreviewLinkTarget rejects missing, cross-repo, absolute, and extern
   expect(resolvePreviewLinkTarget(currentNote, allNotes, "../beta/docs/other.md")).toBeNull();
   expect(resolvePreviewLinkTarget(currentNote, allNotes, "/alpha/docs/start.md")).toBeNull();
   expect(resolvePreviewLinkTarget(currentNote, allNotes, "https://example.com/docs")).toBeNull();
+});
+
+test("resolveMissingPreviewLinkTarget returns same-repo supported note paths that are not indexed", () => {
+  const currentNote = note("alpha", "docs/guides/start.md", "start", 100);
+  const allNotes = [currentNote, note("alpha", "docs/reference/api.md", "api", 100)];
+
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "../reference/missing.md#setup")).toEqual({
+    repoName: "alpha",
+    repoRelativePath: "docs/reference/missing.md",
+    anchor: "setup",
+  });
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "next steps.md")).toEqual({
+    repoName: "alpha",
+    repoRelativePath: "docs/guides/next steps.md",
+  });
+});
+
+test("resolveMissingPreviewLinkTarget rejects existing, anchor-only, external, traversal, and unsupported links", () => {
+  const currentNote = note("alpha", "docs/guides/start.md", "start", 100);
+  const allNotes = [currentNote, note("alpha", "docs/reference/api.md", "api", 100)];
+
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "../reference/api.md")).toBeNull();
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "#goals")).toBeNull();
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "https://example.com/docs.md")).toBeNull();
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "../../../outside.md")).toBeNull();
+  expect(resolveMissingPreviewLinkTarget(currentNote, allNotes, "../images/chart.png")).toBeNull();
 });
 
 test("isExternalPreviewHref identifies links that should leave Repo Notes navigation", () => {

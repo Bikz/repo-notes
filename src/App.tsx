@@ -66,6 +66,7 @@ import {
   previewAssetApiPath,
   pushNoteHistory,
   restoreWorkspaceSession,
+  resolveMissingPreviewLinkTarget,
   resolvePreviewLinkTarget,
   isExternalPreviewHref,
   resolveCreateRepoName,
@@ -1313,6 +1314,12 @@ function App() {
 
     const target = resolvePreviewLinkTarget(selectedNote, notes, href);
     if (!target) {
+      const missingTarget = resolveMissingPreviewLinkTarget(selectedNote, notes, href);
+      if (missingTarget) {
+        openCreateLinkedNote(missingTarget.repoName, missingTarget.repoRelativePath, missingTarget.anchor);
+        return;
+      }
+
       setError("That local link is not in the current index. Refresh the workspace or create the linked note.");
       return;
     }
@@ -1346,6 +1353,19 @@ function App() {
     setViewMode((current) => (current === "edit" ? "edit" : "split"));
     setPendingLineTarget(anchorTarget);
     setNotice(`Opened ${target.note.title} at ${target.anchor}.`);
+  }
+
+  function openCreateLinkedNote(repoName: string, repoRelativePath: string, anchor = "") {
+    setIsMoreOpen(false);
+    setIsMoveOpen(false);
+    setCreateForm({
+      repoName,
+      templateId: "blank",
+      repoRelativePath,
+      content: linkedNoteStarterContent(repoRelativePath, anchor),
+    });
+    setIsCreateOpen(true);
+    setNotice("Create the linked note.");
   }
 
   return (
@@ -2378,6 +2398,29 @@ function rewriteRenderedAssetSources(html: string, noteRootRelativePath: string)
   }
 
   return template.innerHTML;
+}
+
+function linkedNoteStarterContent(repoRelativePath: string, anchor: string) {
+  const title = titleForLinkedNotePath(repoRelativePath);
+  const normalizedAnchor = anchor
+    .replace(/^#/, "")
+    .replaceAll(/[-_]+/g, " ")
+    .trim();
+  if (!normalizedAnchor) {
+    return `# ${title}\n\n`;
+  }
+
+  return `# ${title}\n\n## ${titleCase(normalizedAnchor)}\n\n`;
+}
+
+function titleForLinkedNotePath(repoRelativePath: string) {
+  const fileName = repoRelativePath.split("/").filter(Boolean).at(-1) ?? "New note";
+  const stem = fileName.replace(/\.[^.]+$/, "");
+  return titleCase(stem.replaceAll(/[-_]+/g, " ").trim() || "New note");
+}
+
+function titleCase(value: string) {
+  return value.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
 
 function formatBytes(bytes: number) {

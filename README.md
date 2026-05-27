@@ -23,6 +23,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Preview Markdown, plain text, and HTML with client-side sanitization.
 - Jump between Markdown sections from an in-file outline.
 - Open indexed local Markdown links directly inside Repo Notes.
+- Create a missing same-repo note directly from a local preview link.
 - Move back and forward through opened notes while exploring docs.
 - Render local preview images through the workspace-safe asset endpoint.
 - Edit existing files in place with a compact Markdown formatting toolbar plus editor shortcuts for bold and links.
