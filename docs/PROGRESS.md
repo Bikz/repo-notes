@@ -205,3 +205,8 @@
 - Browser proof used a disposable workspace and isolated config path, filtered Quick Open to one roadmap doc, opened it with Enter, verified the repo context changed to the target repo, then captured the palette filtered to an alpha roadmap:
   - `output/playwright/repo-notes-quick-open.png`
 - Quick Open validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.
+- Continued the docs-review handoff workflow by adding a copyable metadata-only review report for filtered findings.
+- Added `formatDocReviewReport` helper coverage so the copied report includes scope, docs reviewed, issue counts, severity counts, paths, line numbers, targets, and issue messages without note bodies or snippets.
+- Browser proof used a disposable workspace with a broken local link and TODO marker, ran Docs review, clicked `Copy report`, and verified the success notice:
+  - `output/playwright/repo-notes-review-copy-report.png`
+- Review report validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.

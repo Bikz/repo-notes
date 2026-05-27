@@ -746,7 +746,14 @@ button {
   white-space: nowrap;
 }
 
-.review-panel-header > span {
+.review-panel-header-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-panel-header-actions > span {
   flex: 0 0 auto;
   color: #8e8e94;
   font-size: 11px;
@@ -1939,6 +1946,15 @@ button {
 
   .review-panel {
     padding: 12px;
+  }
+
+  .review-panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .review-panel-header-actions {
+    justify-content: space-between;
   }
 
   .review-counts {

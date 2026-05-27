@@ -87,6 +87,8 @@ Docs review is an on-demand workflow, separate from indexing, because it reads d
 
 Review payloads are metadata-only: category, severity, repository, root-relative path, title, line, target path, related counts, and aggregate totals. They intentionally do not include snippets or full note contents.
 
+The client can format the current review payload into a clipboard handoff report. That report is generated entirely in the browser from the returned metadata and current filters; it does not fetch or include document bodies.
+
 ## Backlinks
 
 Backlinks are an on-demand reader workflow for selected notes. The API accepts one indexed root-relative target path, scopes candidates to Markdown notes in the same repository, checks symlink safety before reading each candidate, resolves relative and repo-absolute Markdown links, ignores image and external links, and returns capped source note metadata with line numbers.

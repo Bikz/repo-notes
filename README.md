@@ -38,6 +38,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Warm an in-memory content cache after indexing so repeated docs searches avoid rereading every file.
 - Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
 - Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.
+- Copy a concise metadata-only docs review report for product or engineering handoff.
 - Review changed note-like files from local Git status before handoff.
 - Preview a bounded Git diff for a selected changed doc.
 - Keep all file history in the repositories that already own those files.
@@ -92,7 +93,7 @@ Content search runs on demand against the selected repository or all indexed rep
 
 To keep follow-up searches fast, Repo Notes opportunistically warms an in-memory content cache after indexing. The cache is scoped to the running local API process, validates symlink safety plus file size and modified time before reuse, and is invalidated when Repo Notes edits or creates a note. It is never written to disk.
 
-Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
+Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content. Copied review reports are generated from that same metadata-only payload.
 
 Backlinks run on demand for the selected note. The API reads same-repository Markdown files from the current metadata index, resolves relative local links, and returns source note metadata plus line numbers only. It does not persist note contents or scan outside the selected note's repository.
 

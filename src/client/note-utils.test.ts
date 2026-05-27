@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { DocReviewIssue, DocSearchResult, GitChangesPayload, NoteSummary, RepoSummary } from "../shared/types";
+import type { DocReviewIssue, DocReviewPayload, DocSearchResult, GitChangesPayload, NoteSummary, RepoSummary } from "../shared/types";
 import {
   appShortcutForKey,
   applyMarkdownFormat,
@@ -8,6 +8,7 @@ import {
   createTemplateById,
   extractMarkdownOutline,
   filterReviewIssues,
+  formatDocReviewReport,
   filterNotes,
   gitChangeStatusLabel,
   gitChangesLimitMessage,
@@ -455,6 +456,38 @@ test("filterReviewIssues narrows issues by severity and category", () => {
   expect(filterReviewIssues(issues, "medium", "broken-link")).toEqual([]);
 });
 
+test("formatDocReviewReport builds a metadata-only handoff summary", () => {
+  const review = reviewPayload([
+    {
+      ...issue("broken-link", "high"),
+      rootRelativePath: "alpha/README.md",
+      message: "Local link points to a missing indexed doc.",
+      line: 3,
+      target: "alpha/docs/missing.md",
+    },
+    {
+      ...issue("todo-marker", "medium"),
+      rootRelativePath: "alpha/docs/plan.md",
+      message: "This document contains an unresolved marker.",
+      line: 4,
+    },
+  ]);
+
+  expect(formatDocReviewReport(review, review.issues)).toBe(
+    [
+      "Repo Notes review: alpha",
+      "Docs reviewed: 5 across 1 repo",
+      "Issues in report: 2 of 2 returned (2 total)",
+      "Severity: 1 high, 1 medium, 0 low",
+      "",
+      "1. [high] Broken link - alpha/README.md:3 -> alpha/docs/missing.md",
+      "   Local link points to a missing indexed doc.",
+      "2. [medium] TODO marker - alpha/docs/plan.md:4",
+      "   This document contains an unresolved marker.",
+    ].join("\n"),
+  );
+});
+
 test("lineStartOffsetForLine maps 1-based lines to textarea offsets", () => {
   expect(lineStartOffsetForLine("one\ntwo\nthree")).toBe(0);
   expect(lineStartOffsetForLine("one\ntwo\nthree", 1)).toBe(0);
@@ -629,6 +662,26 @@ function issue(category: DocReviewIssue["category"], severity: DocReviewIssue["s
     rootRelativePath: `alpha/docs/${category}.md`,
     title: category,
     message: category,
+  };
+}
+
+function reviewPayload(issues: DocReviewIssue[]): DocReviewPayload {
+  return {
+    generatedAtMs: Date.UTC(2026, 0, 1),
+    scope: {
+      repoName: "alpha",
+      label: "alpha",
+    },
+    reposReviewed: 1,
+    notesReviewed: 5,
+    issueCount: issues.length,
+    returnedIssueCount: issues.length,
+    severityCounts: {
+      high: issues.filter((item) => item.severity === "high").length,
+      medium: issues.filter((item) => item.severity === "medium").length,
+      low: issues.filter((item) => item.severity === "low").length,
+    },
+    issues,
   };
 }
 

@@ -50,6 +50,7 @@ import {
   createTemplateById,
   extractMarkdownOutline,
   filterReviewIssues,
+  formatDocReviewReport,
   filterNotes,
   gitChangeStatusLabel,
   gitChangesLimitMessage,
@@ -1010,6 +1011,22 @@ function App() {
       setReviewError(messageForError(nextError));
     } finally {
       setIsReviewing(false);
+    }
+  }
+
+  async function copyDocReviewReport() {
+    if (!docReview) {
+      return;
+    }
+
+    setError("");
+    setNotice("");
+
+    try {
+      await writeClipboard(formatDocReviewReport(docReview, filteredReviewIssues));
+      setNotice("Copied review report.");
+    } catch {
+      setError("Could not copy the review report.");
     }
   }
 
@@ -2021,9 +2038,14 @@ function App() {
                   <h3>{docReview?.scope.label ?? (repoFilter === "all" ? "All repos" : repoFilter)}</h3>
                 </div>
                 {docReview && (
-                  <span>
-                    {docReview.notesReviewed} {docReview.notesReviewed === 1 ? "doc" : "docs"}
-                  </span>
+                  <div className="review-panel-header-actions">
+                    <span>
+                      {docReview.notesReviewed} {docReview.notesReviewed === 1 ? "doc" : "docs"}
+                    </span>
+                    <button className="subtle-action" type="button" onClick={() => void copyDocReviewReport()}>
+                      Copy report
+                    </button>
+                  </div>
                 )}
               </div>
 

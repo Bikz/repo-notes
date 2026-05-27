@@ -1,6 +1,7 @@
 import type {
   DocReviewCategory,
   DocReviewIssue,
+  DocReviewPayload,
   DocReviewSeverity,
   DocSearchPayload,
   DocSearchResult,
@@ -592,6 +593,29 @@ function quickOpenScore(note: NoteSummary, normalizedQuery: string, currentRepoN
   return score;
 }
 
+function docReviewCategoryLabel(category: DocReviewCategory) {
+  switch (category) {
+    case "broken-link":
+      return "Broken link";
+    case "missing-file":
+      return "Missing file";
+    case "todo-marker":
+      return "TODO marker";
+    case "empty-doc":
+      return "Empty doc";
+    case "duplicate-title":
+      return "Duplicate title";
+    case "stale-doc":
+      return "Stale doc";
+    case "large-file":
+      return "Large file";
+  }
+}
+
+function reviewIssueLocation(issue: DocReviewIssue) {
+  return `${issue.rootRelativePath}${issue.line ? `:${issue.line}` : ""}`;
+}
+
 export function isCreateDraftDirty(draft: CreateDraftFields, existingRepoRelativePaths: string[] = []) {
   const template = createTemplateById(draft.templateId ?? "blank");
   const suggestedPath = suggestAvailableCreatePath(template.defaultPath, existingRepoRelativePaths);
@@ -652,6 +676,29 @@ export function filterReviewIssues(
     const categoryMatches = categoryFilter === "all" || issue.category === categoryFilter;
     return severityMatches && categoryMatches;
   });
+}
+
+export function formatDocReviewReport(review: DocReviewPayload, issues: DocReviewIssue[] = review.issues) {
+  const repoLabel = review.reposReviewed === 1 ? "repo" : "repos";
+  const lines = [
+    `Repo Notes review: ${review.scope.label}`,
+    `Docs reviewed: ${review.notesReviewed} across ${review.reposReviewed} ${repoLabel}`,
+    `Issues in report: ${issues.length} of ${review.returnedIssueCount} returned (${review.issueCount} total)`,
+    `Severity: ${review.severityCounts.high} high, ${review.severityCounts.medium} medium, ${review.severityCounts.low} low`,
+  ];
+
+  if (issues.length === 0) {
+    return [...lines, "", "No review issues in this report."].join("\n");
+  }
+
+  return [
+    ...lines,
+    "",
+    ...issues.flatMap((issue, index) => [
+      `${index + 1}. [${issue.severity}] ${docReviewCategoryLabel(issue.category)} - ${reviewIssueLocation(issue)}${issue.target ? ` -> ${issue.target}` : ""}`,
+      `   ${issue.message}`,
+    ]),
+  ].join("\n");
 }
 
 export function lineStartOffsetForLine(content: string, line?: number) {
