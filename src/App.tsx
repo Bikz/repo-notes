@@ -28,6 +28,8 @@ import {
 } from "./client/note-utils";
 import type {
   CreateNoteRequest,
+  DocReviewIssue,
+  DocReviewPayload,
   NoteFilePayload,
   UpdateNoteRequest,
   WorkspaceConfig,
@@ -65,11 +67,14 @@ function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
+  const [docReview, setDocReview] = useState<DocReviewPayload | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -237,6 +242,8 @@ function App() {
       });
       setConfig(nextConfig);
       setWorkspaceIndex(null);
+      setDocReview(null);
+      setReviewError("");
       setSelectedPath("");
       setActiveFile(null);
       setEditorValue("");
@@ -257,6 +264,8 @@ function App() {
     try {
       const nextIndex = await requestWorkspaceIndex({ force: options.force });
       setWorkspaceIndex(nextIndex);
+      setDocReview(null);
+      setReviewError("");
       setVisibleNoteCount(initialVisibleNoteCount);
       setCreateForm((current) => ({
         ...current,
@@ -343,6 +352,31 @@ function App() {
     }
   }
 
+  async function runDocReview() {
+    setIsReviewing(true);
+    setReviewError("");
+    setNotice("");
+
+    const params = new URLSearchParams({ force: "1" });
+    if (repoFilter !== "all") {
+      params.set("repo", repoFilter);
+    }
+
+    try {
+      const review = await requestJson<DocReviewPayload>(`/api/review?${params.toString()}`);
+      setDocReview(review);
+      setNotice(
+        review.issueCount === 0
+          ? `Review found no issues in ${review.scope.label}.`
+          : `Review found ${review.issueCount} ${review.issueCount === 1 ? "issue" : "issues"} in ${review.scope.label}.`,
+      );
+    } catch (nextError) {
+      setReviewError(messageForError(nextError));
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
   function openNote(note: NoteFilePayload["note"], nextRepoFilter?: string) {
     if (note.rootRelativePath === selectedPath) {
       setMobilePane("read");
@@ -355,6 +389,8 @@ function App() {
 
     if (nextRepoFilter) {
       setRepoFilter(nextRepoFilter);
+      setDocReview(null);
+      setReviewError("");
       setVisibleNoteCount(initialVisibleNoteCount);
     }
     setSelectedPath(note.rootRelativePath);
@@ -367,16 +403,30 @@ function App() {
 
   function selectRepo(repoName: string) {
     setRepoFilter(repoName);
+    setDocReview(null);
+    setReviewError("");
     setVisibleNoteCount(initialVisibleNoteCount);
   }
 
   function showAllDocs() {
     setRepoFilter("all");
+    setDocReview(null);
+    setReviewError("");
     setVisibleNoteCount(initialVisibleNoteCount);
   }
 
   function confirmDiscardDraft() {
     return !isDirty || window.confirm("Discard unsaved changes?");
+  }
+
+  function openReviewIssue(issue: DocReviewIssue) {
+    const issueNote = notes.find((note) => note.rootRelativePath === issue.rootRelativePath);
+    if (!issueNote) {
+      setError("That review item is no longer in the index. Refresh and run review again.");
+      return;
+    }
+
+    openNote(issueNote, issue.repoName);
   }
 
   return (
@@ -524,18 +574,29 @@ function App() {
                 <h2>{listTitle}</h2>
                 <p>{filteredNotes.length} {filteredNotes.length === 1 ? "doc" : "docs"}</p>
               </div>
-              <select
-                className="compact-select"
-                value={noteSort}
-                onChange={(event) => {
-                  setNoteSort(event.target.value as NoteSortMode);
-                  setVisibleNoteCount(initialVisibleNoteCount);
-                }}
-                aria-label="Organize docs"
-              >
-                <option value="path">By location</option>
-                <option value="updated">Recently updated</option>
-              </select>
+              <div className="list-actions">
+                <select
+                  className="compact-select"
+                  value={noteSort}
+                  onChange={(event) => {
+                    setNoteSort(event.target.value as NoteSortMode);
+                    setVisibleNoteCount(initialVisibleNoteCount);
+                  }}
+                  aria-label="Organize docs"
+                >
+                  <option value="path">By location</option>
+                  <option value="updated">Recently updated</option>
+                </select>
+                <button
+                  className="review-trigger"
+                  type="button"
+                  onClick={() => void runDocReview()}
+                  disabled={isBooting || isIndexing || isReviewing || filteredNotes.length === 0}
+                >
+                  {isReviewing ? <Loader2 className="spin" size={14} /> : <ListFilter size={14} />}
+                  <span>Review</span>
+                </button>
+              </div>
             </div>
             <label className="list-search">
               <span>Search docs</span>
@@ -553,6 +614,82 @@ function App() {
               </div>
             </label>
           </div>
+          {(docReview || isReviewing || reviewError) && (
+            <section className="review-panel" aria-label="Docs review">
+              <div className="review-panel-header">
+                <div>
+                  <p className="eyebrow">Docs review</p>
+                  <h3>{docReview?.scope.label ?? (repoFilter === "all" ? "All repos" : repoFilter)}</h3>
+                </div>
+                {docReview && (
+                  <span>
+                    {docReview.notesReviewed} {docReview.notesReviewed === 1 ? "doc" : "docs"}
+                  </span>
+                )}
+              </div>
+
+              {isReviewing && (
+                <div className="review-message">
+                  <Loader2 className="spin" size={16} />
+                  <span>Checking local docs...</span>
+                </div>
+              )}
+
+              {reviewError && (
+                <div className="review-message is-error">
+                  <span>{reviewError}</span>
+                </div>
+              )}
+
+              {docReview && !isReviewing && (
+                <>
+                  <div className="review-counts">
+                    <span className={docReview.severityCounts.high > 0 ? "is-high" : ""}>
+                      {docReview.severityCounts.high} high
+                    </span>
+                    <span className={docReview.severityCounts.medium > 0 ? "is-medium" : ""}>
+                      {docReview.severityCounts.medium} medium
+                    </span>
+                    <span className={docReview.severityCounts.low > 0 ? "is-low" : ""}>
+                      {docReview.severityCounts.low} low
+                    </span>
+                  </div>
+
+                  {docReview.issueCount === 0 ? (
+                    <div className="review-message">
+                      <span>No broken local links, unresolved markers, empty docs, stale docs, duplicate titles, or oversized files found.</span>
+                    </div>
+                  ) : (
+                    <div className="review-issues">
+                      {docReview.issues.slice(0, 8).map((issue) => (
+                        <button
+                          className="review-issue"
+                          key={issue.id}
+                          type="button"
+                          onClick={() => openReviewIssue(issue)}
+                        >
+                          <span className={`severity-dot is-${issue.severity}`} />
+                          <span className="review-issue-main">
+                            <strong>{reviewCategoryLabel(issue.category)}</strong>
+                            <span>{issue.message}</span>
+                            <em>
+                              {issue.rootRelativePath}
+                              {issue.line ? `:${issue.line}` : ""}
+                            </em>
+                          </span>
+                        </button>
+                      ))}
+                      {docReview.issueCount > docReview.issues.slice(0, 8).length && (
+                        <div className="review-more">
+                          Showing {Math.min(8, docReview.returnedIssueCount)} of {docReview.issueCount} issues.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+          )}
           <div className="note-list">
             {(isBooting || (isIndexing && visibleNotes.length === 0)) && (
               <div className="empty-state">
@@ -822,6 +959,25 @@ function formatFullDateTime(timestamp: number) {
     hour: "numeric",
     minute: "2-digit",
   }).format(timestamp);
+}
+
+function reviewCategoryLabel(category: DocReviewIssue["category"]) {
+  switch (category) {
+    case "broken-link":
+      return "Broken link";
+    case "missing-file":
+      return "Missing file";
+    case "todo-marker":
+      return "Open marker";
+    case "empty-doc":
+      return "Empty doc";
+    case "duplicate-title":
+      return "Duplicate title";
+    case "stale-doc":
+      return "Stale doc";
+    case "large-file":
+      return "Large file";
+  }
 }
 
 export default App;

@@ -62,3 +62,11 @@
   - `output/playwright/repo-notes-repo-only-sidebar.png`
   - `output/playwright/repo-notes-repo-only-selected-note.png`
   - `output/playwright/repo-notes-repo-only-mobile-browse.png`
+- Added an on-demand docs review workflow so product teams can quickly spot common documentation hygiene issues without leaving Repo Notes.
+- The new metadata-only `/api/review` endpoint checks selected repos or all repos for broken local Markdown links, missing indexed files, TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files with bounded concurrency and capped results.
+- Added a compact review panel to the middle docs pane, preserving the repo-only left rail and using existing note-opening behavior so dirty draft protection still applies when jumping from a review issue into a file.
+- Extended smoke coverage to exercise the review API in a disposable workspace.
+- Browser proof artifacts for the docs review pass:
+  - `output/playwright/repo-notes-doc-review-panel.png`
+  - `output/playwright/repo-notes-doc-review-mobile-list.png`
+- Docs review validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.

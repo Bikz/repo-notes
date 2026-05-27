@@ -22,6 +22,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
+- Review docs locally for common product-team hygiene issues: broken local Markdown links, unresolved TODO/FIXME/TBD/XXX markers, empty docs, duplicate titles, stale docs, and oversized files.
 - Keep all file history in the repositories that already own those files.
 
 ## Development
@@ -67,6 +68,8 @@ The configured root path is stored at:
 ```
 
 Repo Notes also writes a metadata-only index cache at `~/.repo-notes/index-cache.json` so the app can open quickly without rewalking every repository before showing search results. The cache stores paths and file metadata, not note contents.
+
+Docs review runs on demand against the selected repository or all indexed repositories. Review responses contain issue metadata such as category, severity, path, line, target, and counts. They do not include file snippets or full note content.
 
 Do not point Repo Notes at directories containing private data you do not want listed in the app.
 

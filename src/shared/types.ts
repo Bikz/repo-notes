@@ -40,6 +40,44 @@ export interface WorkspaceConfig {
   rootExists: boolean;
 }
 
+export type DocReviewCategory =
+  | "broken-link"
+  | "missing-file"
+  | "todo-marker"
+  | "empty-doc"
+  | "duplicate-title"
+  | "stale-doc"
+  | "large-file";
+
+export type DocReviewSeverity = "high" | "medium" | "low";
+
+export interface DocReviewIssue {
+  id: string;
+  category: DocReviewCategory;
+  severity: DocReviewSeverity;
+  repoName: string;
+  rootRelativePath: string;
+  title: string;
+  message: string;
+  line?: number;
+  target?: string;
+  relatedCount?: number;
+}
+
+export interface DocReviewPayload {
+  generatedAtMs: number;
+  scope: {
+    repoName?: string;
+    label: string;
+  };
+  reposReviewed: number;
+  notesReviewed: number;
+  issueCount: number;
+  returnedIssueCount: number;
+  severityCounts: Record<DocReviewSeverity, number>;
+  issues: DocReviewIssue[];
+}
+
 export interface NoteFilePayload {
   note: NoteSummary;
   content: string;

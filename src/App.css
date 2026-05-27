@@ -529,6 +529,13 @@ button {
   max-width: 100%;
 }
 
+.list-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .compact-select {
   flex: 0 0 auto;
   width: auto;
@@ -539,6 +546,204 @@ button {
   background: #1b1b1d;
   font-size: 12px;
   font-weight: 720;
+}
+
+.review-trigger {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 13px;
+  color: #ededee;
+  background: #2a2a2c;
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.review-trigger:hover:not(:disabled) {
+  background: #343437;
+}
+
+.review-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.review-panel {
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 20px;
+  background: #121213;
+}
+
+.review-panel-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-panel-header h3 {
+  margin: 0;
+  overflow: hidden;
+  color: #eeeeef;
+  font-size: 15px;
+  font-weight: 790;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-panel-header > span {
+  flex: 0 0 auto;
+  color: #8e8e94;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.review-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.review-counts span {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
+  padding: 8px 9px;
+  overflow: hidden;
+  color: #d8d8dc;
+  background: #1c1c1e;
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-counts .is-high {
+  color: #ffd8df;
+  background: rgba(130, 28, 47, 0.22);
+}
+
+.review-counts .is-medium {
+  color: #f0d58a;
+  background: rgba(202, 163, 58, 0.18);
+}
+
+.review-counts .is-low {
+  color: #c8c8cd;
+}
+
+.review-message {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 10px 11px;
+  color: #acacb2;
+  background: #19191b;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.review-message.is-error {
+  color: #ffd8df;
+  background: rgba(130, 28, 47, 0.22);
+}
+
+.review-issues {
+  display: grid;
+  gap: 7px;
+}
+
+.review-issue {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  color: #dcdcdf;
+  text-align: left;
+  background: #19191b;
+  cursor: pointer;
+}
+
+.review-issue:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #202022;
+}
+
+.severity-dot {
+  width: 8px;
+  aspect-ratio: 1;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #9c9ca2;
+}
+
+.severity-dot.is-high {
+  background: #ff7285;
+}
+
+.severity-dot.is-medium {
+  background: #d8b33f;
+}
+
+.severity-dot.is-low {
+  background: #8f8f95;
+}
+
+.review-issue-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.review-issue-main strong,
+.review-issue-main span,
+.review-issue-main em,
+.review-more {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-issue-main strong {
+  color: #eeeeef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.review-issue-main span {
+  color: #b6b6bc;
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.review-issue-main em {
+  color: #85858b;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 640;
+}
+
+.review-more {
+  color: #8f8f94;
+  font-size: 11px;
+  font-weight: 720;
+  text-align: center;
 }
 
 .note-list {
@@ -1038,8 +1243,26 @@ button {
     gap: 10px;
   }
 
+  .list-actions {
+    align-items: stretch;
+  }
+
   .compact-select {
+    flex: 1 1 0;
     width: 100%;
+    min-width: 0;
+  }
+
+  .review-trigger {
+    flex: 0 0 auto;
+  }
+
+  .review-panel {
+    padding: 12px;
+  }
+
+  .review-counts {
+    grid-template-columns: 1fr;
   }
 
   .note-list {
