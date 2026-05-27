@@ -9,7 +9,9 @@ import {
   extractMarkdownOutline,
   filterReviewIssues,
   formatDocReviewReport,
+  filterNotesByFolderFacet,
   filterNotes,
+  folderFacetsForRepo,
   gitChangeStatusLabel,
   gitChangesLimitMessage,
   groupNotesByLocation,
@@ -228,6 +230,48 @@ test("groupNotesByLocation groups all docs by repo and selected repos by top fol
   expect(
     groupNotesByLocation([note("alpha", "README.md", "README", 400)], "alpha").map((group) => group.title),
   ).toEqual(["Repository root"]);
+});
+
+test("folderFacetsForRepo summarizes a selected repo by root files and top folders", () => {
+  const repoNotes = [
+    note("alpha", "README.md", "README", 100),
+    note("alpha", "docs/overview.md", "Overview", 200),
+    note("alpha", "docs/runbooks/release.md", "Release", 300),
+    note("alpha", "packages/frontend.md", "Frontend", 400),
+    note("beta", "docs/ops.md", "Ops", 500),
+  ];
+
+  expect(folderFacetsForRepo(repoNotes, "alpha")).toEqual([
+    { key: "all", label: "All docs", count: 4 },
+    { key: "root", label: "Repository root", count: 1 },
+    { key: "docs", label: "docs", count: 2 },
+    { key: "packages", label: "packages", count: 1 },
+  ]);
+});
+
+test("filterNotesByFolderFacet keeps folder slicing scoped to the selected repo", () => {
+  const repoNotes = [
+    note("alpha", "README.md", "README", 100),
+    note("alpha", "docs/overview.md", "Overview", 200),
+    note("alpha", "docs/runbooks/release.md", "Release", 300),
+    note("alpha", "packages/frontend.md", "Frontend", 400),
+    note("beta", "docs/ops.md", "Ops", 500),
+  ];
+
+  expect(filterNotesByFolderFacet(repoNotes, "alpha", "docs").map((item) => item.rootRelativePath)).toEqual([
+    "alpha/docs/overview.md",
+    "alpha/docs/runbooks/release.md",
+  ]);
+  expect(filterNotesByFolderFacet(repoNotes, "alpha", "root").map((item) => item.rootRelativePath)).toEqual([
+    "alpha/README.md",
+  ]);
+  expect(filterNotesByFolderFacet(repoNotes, "alpha", "all").map((item) => item.rootRelativePath)).toEqual([
+    "alpha/README.md",
+    "alpha/docs/overview.md",
+    "alpha/docs/runbooks/release.md",
+    "alpha/packages/frontend.md",
+  ]);
+  expect(filterNotesByFolderFacet(repoNotes, "all", "docs")).toEqual(repoNotes);
 });
 
 test("groupNotesByRecency creates Notes-style date sections", () => {

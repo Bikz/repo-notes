@@ -49,9 +49,11 @@ import {
   createNoteTemplates,
   createTemplateById,
   extractMarkdownOutline,
+  filterNotesByFolderFacet,
   filterReviewIssues,
   formatDocReviewReport,
   filterNotes,
+  folderFacetsForRepo,
   gitChangeStatusLabel,
   gitChangesLimitMessage,
   groupNotesByLocation,
@@ -169,6 +171,7 @@ function App() {
   const [activeFile, setActiveFile] = useState<NoteFilePayload | null>(null);
   const [editorValue, setEditorValue] = useState("");
   const [repoFilter, setRepoFilter] = useState("all");
+  const [folderFilter, setFolderFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [noteSort, setNoteSort] = useState<NoteSortMode>("path");
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
@@ -472,13 +475,16 @@ function App() {
   const searchResultByPath = useMemo(() => {
     return new Map(activeDocSearch?.results.map((result) => [result.note.rootRelativePath, result]) ?? []);
   }, [activeDocSearch]);
+  const folderFacets = useMemo(() => folderFacetsForRepo(notes, repoFilter), [notes, repoFilter]);
+  const activeFolderFilter = folderFacets.some((facet) => facet.key === folderFilter) ? folderFilter : "all";
   const filteredNotes = useMemo(() => {
-    if (activeDocSearch) {
-      return activeDocSearch.results.map((result) => result.note);
-    }
+    const baseNotes = activeDocSearch
+      ? activeDocSearch.results.map((result) => result.note)
+      : sortNotes(filterNotes(notes, repoFilter, query), noteSort);
 
-    return sortNotes(filterNotes(notes, repoFilter, query), noteSort);
-  }, [activeDocSearch, notes, noteSort, query, repoFilter]);
+    return filterNotesByFolderFacet(baseNotes, repoFilter, activeFolderFilter);
+  }, [activeDocSearch, activeFolderFilter, notes, noteSort, query, repoFilter]);
+  const activeFolderFacet = folderFacets.find((facet) => facet.key === activeFolderFilter);
   const visibleNotes = filteredNotes.slice(0, visibleNoteCount);
   const noteGroups = useMemo(() => {
     return noteSort === "updated" ? groupNotesByRecency(visibleNotes) : groupNotesByLocation(visibleNotes, repoFilter);
@@ -492,6 +498,15 @@ function App() {
   const canShowMoreReviewIssues = visibleReviewIssues.length < filteredReviewIssues.length;
   const cappedGitChangesMessage = gitChanges ? gitChangesLimitMessage(gitChanges) : "";
   const listTitle = repoFilter === "all" ? "All notes" : repoFilter;
+  const listCountNoun = activeDocSearch
+    ? filteredNotes.length === 1
+      ? "match"
+      : "matches"
+    : filteredNotes.length === 1
+      ? "doc"
+      : "docs";
+  const listFolderScope = activeFolderFilter !== "all" && activeFolderFacet ? ` in ${activeFolderFacet.label}` : "";
+  const listCountLabel = `${filteredNotes.length} ${listCountNoun}${listFolderScope}`;
 
   const renderedHtml = useMemo(() => {
     if (!activeFile) {
@@ -707,6 +722,7 @@ function App() {
       setDocReview(null);
       setGitChanges(null);
       setGitDiff(null);
+      setFolderFilter("all");
       setSearchError("");
       setReviewError("");
       setGitChangesError("");
@@ -850,6 +866,7 @@ function App() {
       setSelectedPath(createdFile.note.rootRelativePath);
       setNoteHistory((current) => pushNoteHistory(current, createdFile.note.rootRelativePath));
       setRepoFilter(createdFile.note.repoName);
+      setFolderFilter("all");
       setGitChanges(null);
       setGitDiff(null);
       setGitChangesError("");
@@ -900,6 +917,7 @@ function App() {
       setSelectedPath(movedFile.note.rootRelativePath);
       setNoteHistory(pushNoteHistory({ entries: [], index: -1 }, movedFile.note.rootRelativePath));
       setRepoFilter(movedFile.note.repoName);
+      setFolderFilter("all");
       setDocSearch(null);
       setDocReview(null);
       setGitChanges(null);
@@ -1198,6 +1216,7 @@ function App() {
 
     if (options.repoName && options.repoName !== repoFilter) {
       setRepoFilter(options.repoName);
+      setFolderFilter("all");
       setDocSearch(null);
       setSearchError("");
       setVisibleNoteCount(initialVisibleNoteCount);
@@ -1206,6 +1225,13 @@ function App() {
         setReviewError("");
         setReviewVisibleIssueCount(initialReviewIssueCount);
       }
+    } else if (
+      repoFilter !== "all" &&
+      activeFolderFilter !== "all" &&
+      filterNotesByFolderFacet([note], repoFilter, activeFolderFilter).length === 0
+    ) {
+      setFolderFilter("all");
+      setVisibleNoteCount(initialVisibleNoteCount);
     }
 
     if (!isSameNote) {
@@ -1257,6 +1283,7 @@ function App() {
 
   function selectRepo(repoName: string) {
     setRepoFilter(repoName);
+    setFolderFilter("all");
     setDocSearch(null);
     setDocReview(null);
     setGitChanges(null);
@@ -1274,6 +1301,7 @@ function App() {
 
   function showAllDocs() {
     setRepoFilter("all");
+    setFolderFilter("all");
     setDocSearch(null);
     setDocReview(null);
     setGitChanges(null);
@@ -1286,6 +1314,11 @@ function App() {
     setReviewSeverityFilter("all");
     setReviewCategoryFilter("all");
     setReviewVisibleIssueCount(initialReviewIssueCount);
+    setVisibleNoteCount(initialVisibleNoteCount);
+  }
+
+  function selectFolderFacet(facetKey: string) {
+    setFolderFilter(facetKey);
     setVisibleNoteCount(initialVisibleNoteCount);
   }
 
@@ -1827,11 +1860,7 @@ function App() {
             <div className="list-title-block">
               <div>
                 <h2>{listTitle}</h2>
-                <p>
-                  {activeDocSearch
-                    ? `${activeDocSearch.resultCount} ${activeDocSearch.resultCount === 1 ? "match" : "matches"}`
-                    : `${filteredNotes.length} ${filteredNotes.length === 1 ? "doc" : "docs"}`}
-                </p>
+                <p>{listCountLabel}</p>
               </div>
               <div className="list-actions">
                 <select
@@ -1898,6 +1927,23 @@ function App() {
                     : activeDocSearch
                       ? `Searched ${activeDocSearch.searchedNotes} ${activeDocSearch.searchedNotes === 1 ? "doc" : "docs"} locally.`
                       : "Searching titles, paths, repos, and note contents."}
+              </div>
+            )}
+            {folderFacets.length > 1 && (
+              <div className="folder-facets" aria-label="Repository doc groups">
+                {folderFacets.map((facet) => (
+                  <button
+                    className={`folder-facet ${facet.key === activeFolderFilter ? "is-active" : ""}`}
+                    key={facet.key}
+                    type="button"
+                    onClick={() => selectFolderFacet(facet.key)}
+                    aria-pressed={facet.key === activeFolderFilter}
+                  >
+                    {facet.key === "all" ? <ListFilter size={13} /> : <Folder size={13} />}
+                    <span>{facet.label}</span>
+                    <strong>{facet.count}</strong>
+                  </button>
+                ))}
               </div>
             )}
           </div>

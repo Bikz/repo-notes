@@ -210,3 +210,9 @@
 - Browser proof used a disposable workspace with a broken local link and TODO marker, ran Docs review, clicked `Copy report`, and verified the success notice:
   - `output/playwright/repo-notes-review-copy-report.png`
 - Review report validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof.
+- Continued the repo hierarchy simplification so the far-left rail stays focused on repo names instead of nested folders.
+- Added middle-pane folder facets for a selected repo: all docs, repository-root files, and top-level folders. Facets are metadata-only, reset when repo/root context changes, and keep search results scoped without rereading note bodies.
+- Tightened the middle-pane header layout so sort/review/change controls wrap cleanly at normal desktop widths.
+- Browser proof used a disposable workspace and isolated config path, selected `alpha`, verified `All docs`, `Repository root`, `docs`, and `packages` facets, clicked the `docs` facet, and confirmed only the docs-folder notes remained:
+  - `output/playwright/repo-notes-folder-facets.png`
+- Folder facet validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, Playwright browser proof, and a clean browser console check.

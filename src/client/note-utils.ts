@@ -77,6 +77,12 @@ export interface NoteGroup {
   notes: NoteSummary[];
 }
 
+export interface NoteFolderFacet {
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface NoteOutlineItem {
   id: string;
   line: number;
@@ -322,6 +328,73 @@ export function filterNotes(notes: NoteSummary[], repoFilter: string, query: str
       note.repoName.toLowerCase().includes(normalizedQuery);
 
     return repoMatches && queryMatches;
+  });
+}
+
+export function folderFacetsForRepo(notes: NoteSummary[], repoName: string): NoteFolderFacet[] {
+  if (repoName === "all") {
+    return [];
+  }
+
+  const folderCounts = new Map<string, number>();
+  let rootCount = 0;
+  let repoNoteCount = 0;
+
+  for (const note of notes) {
+    if (note.repoName !== repoName) {
+      continue;
+    }
+
+    repoNoteCount += 1;
+    const folder = topFolderForNote(note);
+
+    if (folder) {
+      folderCounts.set(folder, (folderCounts.get(folder) ?? 0) + 1);
+    } else {
+      rootCount += 1;
+    }
+  }
+
+  if (repoNoteCount === 0) {
+    return [];
+  }
+
+  const facets: NoteFolderFacet[] = [{ key: "all", label: "All docs", count: repoNoteCount }];
+
+  if (rootCount > 0) {
+    facets.push({ key: "root", label: "Repository root", count: rootCount });
+  }
+
+  for (const [folder, count] of Array.from(folderCounts.entries()).sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    facets.push({ key: folder, label: folder, count });
+  }
+
+  return facets;
+}
+
+export function filterNotesByFolderFacet(notes: NoteSummary[], repoName: string, facetKey: string) {
+  if (repoName === "all") {
+    return notes;
+  }
+
+  return notes.filter((note) => {
+    if (note.repoName !== repoName) {
+      return false;
+    }
+
+    if (facetKey === "all") {
+      return true;
+    }
+
+    const folder = topFolderForNote(note);
+
+    if (facetKey === "root") {
+      return !folder;
+    }
+
+    return folder === facetKey;
   });
 }
 
@@ -916,19 +989,23 @@ function locationGroupForNote(note: NoteSummary, repoFilter: string): { key: str
     };
   }
 
-  const pathParts = note.repoRelativePath.split("/").filter(Boolean);
-  if (pathParts.length <= 1) {
+  const folderPath = topFolderForNote(note);
+  if (!folderPath) {
     return {
       key: "root",
       title: "Repository root",
     };
   }
 
-  const folderPath = pathParts[0] ?? "";
   return {
     key: `folder:${folderPath}`,
     title: folderPath,
   };
+}
+
+function topFolderForNote(note: NoteSummary) {
+  const pathParts = note.repoRelativePath.split("/").filter(Boolean);
+  return pathParts.length > 1 ? pathParts[0] : "";
 }
 
 function compareNotePaths(left: NoteSummary, right: NoteSummary) {

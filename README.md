@@ -18,6 +18,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 
 - Configure a local workspace root.
 - Render notes from every child repository in one searchable surface.
+- Keep the far-left rail focused on repository names, then slice a selected repo by root files and top-level folders in the middle pane.
 - Jump to any indexed doc through a metadata-only Quick Open palette.
 - Search titles, paths, repository names, and note contents with bounded local snippets.
 - See when a broad content search is capped and narrow by query or repository.

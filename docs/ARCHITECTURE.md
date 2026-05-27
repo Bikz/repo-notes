@@ -51,6 +51,12 @@ The client renders Markdown and HTML in the browser with sanitization. The serve
 
 Quick Open is a client-only switching workflow over the current metadata index. It filters note title, repository-relative path, and repository name in memory, ranks the active repository first when applicable, and never reads note bodies. Selecting a result uses the same `openNote` path as list, search, review, backlink, and history navigation, so dirty-draft protection, repo scoping, mobile read mode, and `/api/files` loading remain centralized.
 
+## Browsing Model
+
+The left rail intentionally stays repository-first: it shows all docs plus direct child repositories, not the full nested folder tree. When one repository is selected, the middle pane derives lightweight folder facets from the current metadata index: all docs, repository-root files, and top-level folders such as `docs`, `packages`, or `runbooks`.
+
+Folder facets are client-side metadata filters over already-indexed notes. They do not read file bodies, change the configured workspace root, or alter the saved workspace session; opening a note still goes through the central dirty-draft-safe `openNote` path.
+
 ## Editing
 
 The Markdown editor is a controlled browser textarea backed by the active note content loaded from `/api/files`. Formatting toolbar actions and editor-scoped formatting shortcuts are client-side text transforms over the current textarea selection; they update only the in-memory draft until the user explicitly saves through `PUT /api/files`, preserving the same modified-time conflict checks as manual typing.

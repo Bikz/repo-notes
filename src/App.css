@@ -467,6 +467,69 @@ textarea:focus {
   background: rgba(130, 28, 47, 0.2);
 }
 
+.folder-facets {
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.folder-facets::-webkit-scrollbar {
+  display: none;
+}
+
+.folder-facet {
+  flex: 0 0 auto;
+  max-width: 210px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #cfcfd3;
+  background: #19191b;
+  font-size: 12px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.folder-facet:hover {
+  background: #242427;
+}
+
+.folder-facet.is-active {
+  color: #f4f0dc;
+  border-color: rgba(255, 205, 62, 0.44);
+  background: rgba(255, 205, 62, 0.13);
+}
+
+.folder-facet svg {
+  flex: 0 0 auto;
+  color: #caa33a;
+}
+
+.folder-facet span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-facet strong {
+  flex: 0 0 auto;
+  color: #8f8f94;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.folder-facet.is-active strong {
+  color: #e0c96a;
+}
+
 .search-limit-message {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -655,6 +718,12 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+  flex-wrap: wrap;
+}
+
+.list-title-block > div:first-child {
+  min-width: 150px;
+  flex: 1 1 150px;
 }
 
 .list-header h2 {
@@ -678,16 +747,19 @@ button {
 }
 
 .list-actions {
-  flex: 0 0 auto;
+  flex: 1 1 260px;
+  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .compact-select {
   flex: 0 0 auto;
   width: auto;
-  min-width: 150px;
+  min-width: 132px;
   height: 34px;
   border-radius: 999px;
   color: #d6d6da;
