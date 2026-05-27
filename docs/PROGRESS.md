@@ -33,3 +33,18 @@
   - `output/playwright/devshelf-dark-notes-mobile-browse.png`
 - Added stale-save protection so browser edits include the loaded file timestamp and server writes return a conflict instead of overwriting a note changed on disk.
 - Final dark-notes validation passed: `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, Playwright console-error check, and a disposable browser UI edit/save round-trip.
+
+## 2026-05-27
+
+- Explored product-team documentation directions for DevShelf's next design-system pass, focused on file viewing, switching, review, and structured docs workflows.
+- Preserved the generated direction sheet at `output/design/devshelf-product-docs-directions.png`.
+- Changed direction based on product feedback: the primary experience should not expose root/path boot setup first; DevShelf should open as an immediate repository/document hierarchy.
+- Added a reusable repo hierarchy builder and replaced the sidebar setup/filter stack with a repo-first source tree, keeping workspace root configuration tucked into a compact footer.
+- Browser proof surfaced full-workspace indexing exceeding Bun's default request idle timeout, so the local API timeout was raised to keep large hierarchy scans from proxying as 502s.
+- Tightened generated-directory ignores for hierarchy quality, including artifact/output/tmp and Python virtual environment folders that were polluting the document tree.
+- Preserved save/create status messages through quiet index refreshes and hardened long repo-name truncation in the list header.
+- Validated the hierarchy-first pass with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and a Playwright console-error check.
+- Browser proof artifacts for the hierarchy-first pass:
+  - `output/playwright/devshelf-repo-hierarchy-expanded.png`
+  - `output/playwright/devshelf-repo-hierarchy-selected.png`
+  - `output/playwright/devshelf-repo-hierarchy-mobile-browse.png`

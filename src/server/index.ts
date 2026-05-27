@@ -9,6 +9,7 @@ const distPath = resolve(process.cwd(), "dist");
 
 const server = Bun.serve({
   port,
+  idleTimeout: 60,
   async fetch(request) {
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders() });

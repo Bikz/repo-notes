@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { NoteSummary, RepoSummary } from "../shared/types";
-import { filterNotes, groupNotesByRecency, resolveCreateRepoName, sortNotes } from "./note-utils";
+import { buildRepoHierarchy, filterNotes, groupNotesByRecency, resolveCreateRepoName, sortNotes } from "./note-utils";
 
 const notes: NoteSummary[] = [
   note("alpha", "docs/README.md", "README", 100),
@@ -36,6 +36,39 @@ test("resolveCreateRepoName keeps valid selections and replaces stale ones", () 
   expect(resolveCreateRepoName("beta", repos)).toBe("beta");
   expect(resolveCreateRepoName("stale", repos)).toBe("alpha");
   expect(resolveCreateRepoName("", [])).toBe("");
+});
+
+test("buildRepoHierarchy groups notes under repos, folders, and files", () => {
+  const repos: RepoSummary[] = [
+    { name: "alpha", rootRelativePath: "alpha", isGitRepo: true, noteCount: 2 },
+    { name: "beta", rootRelativePath: "beta", isGitRepo: true, noteCount: 1 },
+  ];
+
+  const hierarchy = buildRepoHierarchy(notes, repos);
+
+  expect(hierarchy.map((repo) => repo.repo.name)).toEqual(["alpha", "beta"]);
+  expect(hierarchy[0]?.children).toMatchObject([
+    {
+      type: "folder",
+      name: "docs",
+      noteCount: 1,
+      children: [{ type: "file", name: "README.md", path: "docs/README.md" }],
+    },
+    {
+      type: "folder",
+      name: "notes",
+      noteCount: 1,
+      children: [{ type: "file", name: "release-plan.md", path: "notes/release-plan.md" }],
+    },
+  ]);
+  expect(hierarchy[1]?.children).toMatchObject([
+    {
+      type: "folder",
+      name: "docs",
+      noteCount: 1,
+      children: [{ type: "file", name: "ops.txt", path: "docs/ops.txt" }],
+    },
+  ]);
 });
 
 test("groupNotesByRecency creates Notes-style date sections", () => {

@@ -12,7 +12,7 @@ DevShelf currently scans direct child directories under the configured workspace
 - Text: `.txt`
 - HTML: `.html`, `.htm`
 
-It skips generated, hidden, and dependency folders such as `.git`, `.torva`, `node_modules`, `deps`, `dist`, `build`, `.next`, `.turbo`, and `coverage`. `.github` and `.well-known` remain visible.
+It skips generated, hidden, artifact, virtual environment, and dependency folders such as `.git`, `.torva`, `node_modules`, `deps`, `dist`, `build`, `artifacts`, `output`, `tmp`, `.venv`, `venv`, `.next`, `.turbo`, and `coverage`. `.github` and `.well-known` remain visible.
 
 ## Features
 

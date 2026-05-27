@@ -137,11 +137,11 @@
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   overflow: auto;
-  padding: 18px;
+  padding: 14px 12px 12px;
   border-right: 1px solid var(--line);
-  background: #141415;
+  background: #121213;
 }
 
 .note-list-panel {
@@ -155,6 +155,237 @@
   display: flex;
   flex-direction: column;
   background: #0d0d0e;
+}
+
+.source-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px 5px;
+}
+
+.source-header h2 {
+  margin: 0;
+  overflow: hidden;
+  color: #efeff1;
+  font-size: 20px;
+  font-weight: 790;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-header > span {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #8f8f94;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.source-search {
+  padding: 0 6px;
+}
+
+.all-docs-row,
+.repo-row,
+.tree-row {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  color: #d9d9dc;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.all-docs-row {
+  height: 36px;
+  border-radius: 12px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.all-docs-row:hover,
+.repo-row-shell:hover,
+.tree-row:hover {
+  background: #202023;
+}
+
+.all-docs-row.is-active,
+.repo-row-shell.is-active {
+  background: #2e2e31;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.all-docs-row span,
+.repo-row span,
+.tree-row span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-docs-row strong,
+.repo-row strong,
+.tree-row strong {
+  flex: 0 0 auto;
+  color: #98989e;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.repo-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 3px 0 10px;
+}
+
+.repo-group {
+  min-width: 0;
+}
+
+.repo-row-shell {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  border-radius: 12px;
+}
+
+.tree-disclosure {
+  width: 26px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  color: #8f8f94;
+  background: transparent;
+  cursor: pointer;
+}
+
+.repo-row {
+  height: 34px;
+  padding: 0 10px 0 0;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.repo-row svg,
+.folder-row svg,
+.all-docs-row svg {
+  color: #caa33a;
+}
+
+.repo-children {
+  display: grid;
+  gap: 1px;
+  padding: 2px 0 7px;
+}
+
+.tree-row {
+  min-height: 30px;
+  border-radius: 9px;
+  padding-right: 8px;
+  color: #bfc0c4;
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.folder-row {
+  color: #d2d2d5;
+}
+
+.file-row {
+  color: #ababaf;
+}
+
+.file-row svg {
+  flex: 0 0 auto;
+  color: #77777d;
+}
+
+.file-row small {
+  flex: 0 0 auto;
+  color: #6f6f75;
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.file-row.is-selected {
+  color: #f1f1f3;
+  background: #353538;
+}
+
+.file-row.is-selected svg,
+.file-row.is-selected small {
+  color: #d9b650;
+}
+
+.hierarchy-state {
+  display: grid;
+  gap: 6px;
+  padding: 20px 10px;
+  color: #8f8f94;
+  font-size: 12px;
+  text-align: center;
+}
+
+.hierarchy-state strong {
+  color: #d8d8dc;
+}
+
+.workspace-footer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 6px 0;
+}
+
+.workspace-footer details {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-footer details[open] {
+  gap: 10px;
+}
+
+.workspace-footer summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #9a9aa0;
+  font-size: 12px;
+  font-weight: 720;
+  list-style: none;
+  cursor: pointer;
+}
+
+.workspace-footer summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-footer summary strong {
+  color: #d8d8da;
+  font-size: 11px;
+}
+
+.workspace-footer label {
+  margin-top: 10px;
 }
 
 .panel {
@@ -348,10 +579,17 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.list-header > div {
+  min-width: 0;
+}
+
 .list-header h2 {
+  overflow: hidden;
   color: #efeff1;
   font-size: 26px;
   font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .list-header p {
@@ -359,6 +597,18 @@ button {
   color: #9a9aa0;
   font-size: 14px;
   font-weight: 650;
+}
+
+.compact-select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 150px;
+  height: 34px;
+  border-radius: 999px;
+  color: #d6d6da;
+  background: #1b1b1d;
+  font-size: 12px;
+  font-weight: 720;
 }
 
 .note-list {

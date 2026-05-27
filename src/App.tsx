@@ -1,9 +1,12 @@
 import DOMPurify from "dompurify";
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
   Check,
+  FileText,
   FilePlus2,
-  FolderCog,
+  Folder,
   ListFilter,
   Loader2,
   MoreHorizontal,
@@ -18,8 +21,14 @@ import { marked } from "marked";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-import type { NoteSortMode } from "./client/note-utils";
-import { filterNotes, groupNotesByRecency, resolveCreateRepoName, sortNotes } from "./client/note-utils";
+import type { DocTreeNode, NoteSortMode } from "./client/note-utils";
+import {
+  buildRepoHierarchy,
+  filterNotes,
+  groupNotesByRecency,
+  resolveCreateRepoName,
+  sortNotes,
+} from "./client/note-utils";
 import type {
   CreateNoteRequest,
   NoteFilePayload,
@@ -57,6 +66,8 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [mobilePane, setMobilePane] = useState<MobilePane>("browse");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [visibleNoteCount, setVisibleNoteCount] = useState(initialVisibleNoteCount);
   const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
   const [isBooting, setIsBooting] = useState(true);
@@ -71,6 +82,25 @@ function App() {
   const isDirty = activeFile !== null && editorValue !== activeFile.content;
   const repos = useMemo(() => workspaceIndex?.repos ?? [], [workspaceIndex]);
   const notes = useMemo(() => workspaceIndex?.notes ?? [], [workspaceIndex]);
+  const repoHierarchies = useMemo(() => buildRepoHierarchy(notes, repos), [notes, repos]);
+
+  function expandNoteLocation(note: NoteFilePayload["note"]) {
+    setExpandedRepos((current) => {
+      if (current.has(note.repoName)) {
+        return current;
+      }
+
+      return new Set([...current, note.repoName]);
+    });
+    setExpandedFolders((current) => {
+      const nextKeys = folderKeysForNote(note.repoName, note.repoRelativePath);
+      if (nextKeys.every((key) => current.has(key))) {
+        return current;
+      }
+
+      return new Set([...current, ...nextKeys]);
+    });
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -99,7 +129,6 @@ function App() {
             ...current,
             repoName: resolveCreateRepoName(current.repoName, nextIndex.repos),
           }));
-          setNotice(`Indexed ${nextIndex.notes.length} notes across ${nextIndex.repos.length} repos.`);
         }
       } catch (nextError) {
         if (!isCancelled) {
@@ -159,6 +188,7 @@ function App() {
   }, [notes, noteSort, query, repoFilter]);
   const visibleNotes = filteredNotes.slice(0, visibleNoteCount);
   const noteGroups = useMemo(() => groupNotesByRecency(visibleNotes), [visibleNotes]);
+  const listTitle = repoFilter === "all" ? "All notes" : repoFilter;
 
   const renderedHtml = useMemo(() => {
     if (!activeFile) {
@@ -209,17 +239,19 @@ function App() {
       setSelectedPath("");
       setActiveFile(null);
       setEditorValue("");
+      setExpandedRepos(new Set());
+      setExpandedFolders(new Set());
       setNotice(nextConfig.rootExists ? "Workspace root saved." : "Root saved, but the path does not exist.");
 
       if (nextConfig.rootExists) {
-        await refreshIndex();
+        await refreshIndex({ quiet: true });
       }
     } catch (nextError) {
       setError(messageForError(nextError));
     }
   }
 
-  async function refreshIndex() {
+  async function refreshIndex(options: { quiet?: boolean } = {}) {
     setIsIndexing(true);
     setError("");
 
@@ -231,7 +263,9 @@ function App() {
         ...current,
         repoName: resolveCreateRepoName(current.repoName, nextIndex.repos),
       }));
-      setNotice(`Indexed ${nextIndex.notes.length} notes across ${nextIndex.repos.length} repos.`);
+      if (!options.quiet) {
+        setNotice(`Refreshed ${nextIndex.notes.length} notes across ${nextIndex.repos.length} repos.`);
+      }
 
       if (selectedPath && !nextIndex.notes.some((note) => note.rootRelativePath === selectedPath)) {
         setSelectedPath("");
@@ -268,7 +302,7 @@ function App() {
       setActiveFile(savedFile);
       setEditorValue(savedFile.content);
       setNotice("Saved.");
-      await refreshIndex();
+      await refreshIndex({ quiet: true });
     } catch (nextError) {
       setError(messageForError(nextError));
     } finally {
@@ -296,11 +330,12 @@ function App() {
       setActiveFile(createdFile);
       setEditorValue(createdFile.content);
       setSelectedPath(createdFile.note.rootRelativePath);
+      expandNoteLocation(createdFile.note);
       setMobilePane("read");
       setIsCreateOpen(false);
       setCreateForm((current) => ({ ...emptyCreateForm, repoName: current.repoName }));
       setNotice("Created note.");
-      await refreshIndex();
+      await refreshIndex({ quiet: true });
     } catch (nextError) {
       setError(messageForError(nextError));
     } finally {
@@ -308,8 +343,8 @@ function App() {
     }
   }
 
-  function selectNote(rootRelativePath: string) {
-    if (rootRelativePath === selectedPath) {
+  function openNote(note: NoteFilePayload["note"], nextRepoFilter?: string) {
+    if (note.rootRelativePath === selectedPath) {
       setMobilePane("read");
       return;
     }
@@ -318,8 +353,97 @@ function App() {
       return;
     }
 
-    setSelectedPath(rootRelativePath);
+    if (nextRepoFilter) {
+      setRepoFilter(nextRepoFilter);
+      setVisibleNoteCount(initialVisibleNoteCount);
+    }
+    expandNoteLocation(note);
+    setSelectedPath(note.rootRelativePath);
     setMobilePane("read");
+  }
+
+  function selectNote(note: NoteFilePayload["note"]) {
+    openNote(note);
+  }
+
+  function selectHierarchyNote(note: NoteFilePayload["note"]) {
+    openNote(note, note.repoName);
+  }
+
+  function selectRepo(repoName: string) {
+    setRepoFilter(repoName);
+    setVisibleNoteCount(initialVisibleNoteCount);
+    setExpandedRepos((current) => new Set([...current, repoName]));
+  }
+
+  function showAllDocs() {
+    setRepoFilter("all");
+    setVisibleNoteCount(initialVisibleNoteCount);
+  }
+
+  function toggleRepo(repoName: string) {
+    setExpandedRepos((current) => {
+      const next = new Set(current);
+      if (next.has(repoName)) {
+        next.delete(repoName);
+      } else {
+        next.add(repoName);
+      }
+      return next;
+    });
+  }
+
+  function toggleFolder(key: string) {
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function renderTreeNodes(repoName: string, treeNodes: DocTreeNode[], depth = 0) {
+    return treeNodes.map((node) => {
+      if (node.type === "folder") {
+        const key = `${repoName}/${node.path}`;
+        const isExpanded = expandedFolders.has(key);
+
+        return (
+          <div className="tree-node" key={key}>
+            <button
+              className="tree-row folder-row"
+              style={{ paddingLeft: `${10 + depth * 16}px` }}
+              type="button"
+              onClick={() => toggleFolder(key)}
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <Folder size={14} />
+              <span>{node.name}</span>
+              <strong>{node.noteCount}</strong>
+            </button>
+            {isExpanded && <div className="tree-children">{renderTreeNodes(repoName, node.children, depth + 1)}</div>}
+          </div>
+        );
+      }
+
+      return (
+        <button
+          className={`tree-row file-row ${node.note.rootRelativePath === selectedPath ? "is-selected" : ""}`}
+          key={`${repoName}/${node.path}`}
+          style={{ paddingLeft: `${30 + depth * 16}px` }}
+          type="button"
+          onClick={() => selectHierarchyNote(node.note)}
+        >
+          <FileText size={14} />
+          <span>{node.note.title}</span>
+          <small>{node.note.extension.replace(".", "")}</small>
+        </button>
+      );
+    });
   }
 
   function confirmDiscardDraft() {
@@ -385,11 +509,88 @@ function App() {
 
         <section className="workspace-grid">
         <aside className="sidebar">
-          <form className="panel compact-form" onSubmit={updateRootPath}>
-            <div className="panel-heading">
-              <FolderCog size={16} />
-              <h2>Workspace</h2>
+          <div className="source-header">
+            <div>
+              <p className="eyebrow">Docs</p>
+              <h2>Repositories</h2>
             </div>
+            <span>{repos.length} repos</span>
+          </div>
+
+          <label className="source-search">
+            <span>Search docs</span>
+            <div className="search-box">
+              <Search size={15} />
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setVisibleNoteCount(initialVisibleNoteCount);
+                }}
+                placeholder="Title, path, repo"
+                spellCheck={false}
+              />
+            </div>
+          </label>
+
+          <button
+            className={`all-docs-row ${repoFilter === "all" ? "is-active" : ""}`}
+            type="button"
+            onClick={showAllDocs}
+          >
+            <ListFilter size={15} />
+            <span>All docs</span>
+            <strong>{notes.length}</strong>
+          </button>
+
+          <nav className="repo-tree" aria-label="Repository note hierarchy">
+            {isBooting && (
+              <div className="hierarchy-state">
+                <Loader2 className="spin" size={16} />
+                <span>Loading docs...</span>
+              </div>
+            )}
+            {!isBooting && repoHierarchies.map((hierarchy) => {
+              const repoName = hierarchy.repo.name;
+              const isExpanded = expandedRepos.has(repoName);
+              const isActive = repoFilter === repoName;
+
+              return (
+                <section className="repo-group" key={repoName}>
+                  <div className={`repo-row-shell ${isActive ? "is-active" : ""}`}>
+                    <button
+                      className="tree-disclosure"
+                      type="button"
+                      onClick={() => toggleRepo(repoName)}
+                      aria-label={`${isExpanded ? "Collapse" : "Expand"} ${repoName}`}
+                      aria-expanded={isExpanded}
+                    >
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                    <button className="repo-row" type="button" onClick={() => selectRepo(repoName)}>
+                      <Folder size={15} />
+                      <span>{repoName}</span>
+                      <strong>{hierarchy.repo.noteCount}</strong>
+                    </button>
+                  </div>
+                  {isExpanded && <div className="repo-children">{renderTreeNodes(repoName, hierarchy.children)}</div>}
+                </section>
+              );
+            })}
+            {!isBooting && repoHierarchies.length === 0 && (
+              <div className="hierarchy-state">
+                <strong>No docs indexed.</strong>
+                <span>Choose a workspace root from settings.</span>
+              </div>
+            )}
+          </nav>
+
+          <form className="workspace-footer" onSubmit={updateRootPath}>
+            <details>
+              <summary>
+                <span>Workspace root</span>
+                <strong>{config?.rootExists ? "Ready" : "Missing"}</strong>
+              </summary>
             <label>
               <span>Root path</span>
               <input
@@ -403,84 +604,28 @@ function App() {
               <Check size={15} />
               <span>Set root</span>
             </button>
-            <dl className="workspace-stats">
-              <div>
-                <dt>Root</dt>
-                <dd>{config?.rootExists ? "Ready" : "Missing"}</dd>
-              </div>
-              <div>
-                <dt>Repos</dt>
-                <dd>{repos.length}</dd>
-              </div>
-              <div>
-                <dt>Notes</dt>
-                <dd>{notes.length}</dd>
-              </div>
-            </dl>
+            </details>
           </form>
-
-          <section className="panel">
-            <div className="panel-heading">
-              <ListFilter size={16} />
-              <h2>Filters</h2>
-            </div>
-            <label>
-              <span>Repository</span>
-              <select
-                value={repoFilter}
-                onChange={(event) => {
-                  setRepoFilter(event.target.value);
-                  setVisibleNoteCount(initialVisibleNoteCount);
-                }}
-              >
-                <option value="all">All repositories</option>
-                {repos.map((repo) => (
-                  <option key={repo.name} value={repo.name}>
-                    {repo.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Search</span>
-              <div className="search-box">
-                <Search size={15} />
-                <input
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setVisibleNoteCount(initialVisibleNoteCount);
-                  }}
-                  placeholder="Title, path, repo"
-                  spellCheck={false}
-                />
-              </div>
-            </label>
-            <label>
-              <span>Sort</span>
-              <select
-                value={noteSort}
-                onChange={(event) => {
-                  setNoteSort(event.target.value as NoteSortMode);
-                  setVisibleNoteCount(initialVisibleNoteCount);
-                }}
-              >
-                <option value="path">Path</option>
-                <option value="updated">Recently updated</option>
-              </select>
-            </label>
-          </section>
         </aside>
 
         <section className="note-list-panel">
           <div className="list-header">
             <div>
-              <h2>Notes</h2>
+              <h2>{listTitle}</h2>
               <p>{filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}</p>
             </div>
-            <button className="round-button subtle-button" type="button" aria-label="Note list options">
-              <MoreHorizontal size={18} />
-            </button>
+            <select
+              className="compact-select"
+              value={noteSort}
+              onChange={(event) => {
+                setNoteSort(event.target.value as NoteSortMode);
+                setVisibleNoteCount(initialVisibleNoteCount);
+              }}
+              aria-label="Sort notes"
+            >
+              <option value="path">Path</option>
+              <option value="updated">Recently updated</option>
+            </select>
           </div>
           <div className="note-list">
             {(isBooting || (isIndexing && visibleNotes.length === 0)) && (
@@ -498,7 +643,7 @@ function App() {
                     className={`note-row ${note.rootRelativePath === selectedPath ? "is-selected" : ""}`}
                     key={note.id}
                     type="button"
-                    onClick={() => selectNote(note.rootRelativePath)}
+                    onClick={() => selectNote(note)}
                   >
                     <span className="note-title">{note.title}</span>
                     <span className="note-path">{note.repoName}/{note.repoRelativePath}</span>
@@ -731,6 +876,11 @@ function formatFullDateTime(timestamp: number) {
     hour: "numeric",
     minute: "2-digit",
   }).format(timestamp);
+}
+
+function folderKeysForNote(repoName: string, repoRelativePath: string) {
+  const folders = repoRelativePath.split("/").filter(Boolean).slice(0, -1);
+  return folders.map((_, index) => `${repoName}/${folders.slice(0, index + 1).join("/")}`);
 }
 
 export default App;

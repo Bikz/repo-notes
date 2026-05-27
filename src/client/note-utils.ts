@@ -7,6 +7,28 @@ export interface NoteGroup {
   notes: NoteSummary[];
 }
 
+export type DocTreeNode = DocTreeFolder | DocTreeFile;
+
+export interface DocTreeFolder {
+  type: "folder";
+  name: string;
+  path: string;
+  noteCount: number;
+  children: DocTreeNode[];
+}
+
+export interface DocTreeFile {
+  type: "file";
+  name: string;
+  path: string;
+  note: NoteSummary;
+}
+
+export interface RepoHierarchy {
+  repo: RepoSummary;
+  children: DocTreeNode[];
+}
+
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -40,6 +62,39 @@ export function resolveCreateRepoName(currentRepoName: string, repos: RepoSummar
   return repos[0]?.name ?? "";
 }
 
+export function buildRepoHierarchy(notes: NoteSummary[], repos: RepoSummary[]): RepoHierarchy[] {
+  const roots = new Map<string, MutableFolder>();
+
+  for (const repo of repos) {
+    roots.set(repo.name, createMutableFolder(repo.name, ""));
+  }
+
+  for (const note of notes) {
+    if (!roots.has(note.repoName)) {
+      roots.set(note.repoName, createMutableFolder(note.repoName, ""));
+    }
+
+    const root = roots.get(note.repoName);
+    if (!root) {
+      continue;
+    }
+
+    insertNote(root, note);
+  }
+
+  return Array.from(roots.entries())
+    .map(([repoName, root]) => ({
+      repo: repos.find((repo) => repo.name === repoName) ?? {
+        name: repoName,
+        rootRelativePath: repoName,
+        isGitRepo: false,
+        noteCount: root.noteCount,
+      },
+      children: toDocTreeNodes(root.children),
+    }))
+    .sort((left, right) => left.repo.name.localeCompare(right.repo.name));
+}
+
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {
   const buckets: NoteGroup[] = [
     { title: "Today", notes: [] },
@@ -65,6 +120,81 @@ export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): N
   }
 
   return buckets.filter((bucket) => bucket.notes.length > 0);
+}
+
+interface MutableFolder {
+  type: "folder";
+  name: string;
+  path: string;
+  noteCount: number;
+  children: Map<string, MutableFolder | DocTreeFile>;
+}
+
+function createMutableFolder(name: string, path: string): MutableFolder {
+  return {
+    type: "folder",
+    name,
+    path,
+    noteCount: 0,
+    children: new Map(),
+  };
+}
+
+function insertNote(root: MutableFolder, note: NoteSummary) {
+  const parts = note.repoRelativePath.split("/").filter(Boolean);
+  let current = root;
+
+  current.noteCount += 1;
+
+  for (const [index, part] of parts.entries()) {
+    const path = parts.slice(0, index + 1).join("/");
+    const isFile = index === parts.length - 1;
+
+    if (isFile) {
+      current.children.set(part, {
+        type: "file",
+        name: part,
+        path,
+        note,
+      });
+      continue;
+    }
+
+    const existing = current.children.get(part);
+    if (existing?.type === "folder") {
+      current = existing;
+    } else {
+      const folder = createMutableFolder(part, path);
+      current.children.set(part, folder);
+      current = folder;
+    }
+
+    current.noteCount += 1;
+  }
+}
+
+function toDocTreeNodes(children: Map<string, MutableFolder | DocTreeFile>): DocTreeNode[] {
+  return Array.from(children.values())
+    .map((node) => {
+      if (node.type === "file") {
+        return node;
+      }
+
+      return {
+        type: "folder",
+        name: node.name,
+        path: node.path,
+        noteCount: node.noteCount,
+        children: toDocTreeNodes(node.children),
+      } satisfies DocTreeFolder;
+    })
+    .sort((left, right) => {
+      if (left.type !== right.type) {
+        return left.type === "folder" ? -1 : 1;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
 }
 
 function compareNotePaths(left: NoteSummary, right: NoteSummary) {
