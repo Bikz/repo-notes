@@ -1,8 +1,20 @@
-import type { DocReviewCategory, DocReviewIssue, DocReviewSeverity, NoteSummary, RepoSummary } from "../shared/types";
+import type {
+  DocReviewCategory,
+  DocReviewIssue,
+  DocReviewSeverity,
+  DocSearchResult,
+  NoteSummary,
+  RepoSummary,
+} from "../shared/types";
 
 export type NoteSortMode = "path" | "updated";
 export type ReviewSeverityFilter = DocReviewSeverity | "all";
 export type ReviewCategoryFilter = DocReviewCategory | "all";
+
+export interface NoteLineTarget {
+  rootRelativePath: string;
+  line?: number;
+}
 
 export interface NoteGroup {
   title: string;
@@ -87,6 +99,17 @@ export function lineStartOffsetForLine(content: string, line?: number) {
   }
 
   return content.length;
+}
+
+export function lineTargetForSearchResult(result?: DocSearchResult | null): NoteLineTarget | null {
+  if (!result || result.matchKind !== "content" || result.line === undefined || result.line < 1) {
+    return null;
+  }
+
+  return {
+    rootRelativePath: result.note.rootRelativePath,
+    line: result.line,
+  };
 }
 
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {

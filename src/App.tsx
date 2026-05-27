@@ -19,7 +19,7 @@ import { marked } from "marked";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { NoteSortMode } from "./client/note-utils";
+import type { NoteLineTarget, NoteSortMode } from "./client/note-utils";
 import {
   filterReviewIssues,
   filterNotes,
@@ -27,6 +27,7 @@ import {
   groupNotesByRecency,
   initialReviewIssueCount,
   lineStartOffsetForLine,
+  lineTargetForSearchResult,
   nextReviewIssueLimit,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
@@ -54,11 +55,6 @@ interface CreateFormState {
   repoName: string;
   repoRelativePath: string;
   content: string;
-}
-
-interface ReviewJumpTarget {
-  rootRelativePath: string;
-  line?: number;
 }
 
 interface OpenNoteOptions {
@@ -106,7 +102,7 @@ function App() {
   const [reviewSeverityFilter, setReviewSeverityFilter] = useState<ReviewSeverityFilter>("all");
   const [reviewCategoryFilter, setReviewCategoryFilter] = useState<ReviewCategoryFilter>("all");
   const [reviewVisibleIssueCount, setReviewVisibleIssueCount] = useState(initialReviewIssueCount);
-  const [pendingReviewTarget, setPendingReviewTarget] = useState<ReviewJumpTarget | null>(null);
+  const [pendingLineTarget, setPendingLineTarget] = useState<NoteLineTarget | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
@@ -292,11 +288,11 @@ function App() {
   }, [isDirty]);
 
   useEffect(() => {
-    if (!pendingReviewTarget || !activeFile || viewMode === "preview") {
+    if (!pendingLineTarget || !activeFile || viewMode === "preview") {
       return;
     }
 
-    if (activeFile.note.rootRelativePath !== pendingReviewTarget.rootRelativePath) {
+    if (activeFile.note.rootRelativePath !== pendingLineTarget.rootRelativePath) {
       return;
     }
 
@@ -305,16 +301,16 @@ function App() {
       return;
     }
 
-    const offset = lineStartOffsetForLine(editorValue, pendingReviewTarget.line);
-    const targetLine = Math.max(1, Math.floor(pendingReviewTarget.line ?? 1));
+    const offset = lineStartOffsetForLine(editorValue, pendingLineTarget.line);
+    const targetLine = Math.max(1, Math.floor(pendingLineTarget.line ?? 1));
     const computedLineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
     const lineHeight = Number.isFinite(computedLineHeight) ? computedLineHeight : 20;
 
     textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(offset, offset);
     textarea.scrollTop = Math.max(0, (targetLine - 1) * lineHeight - textarea.clientHeight * 0.25);
-    setPendingReviewTarget(null);
-  }, [activeFile, editorValue, pendingReviewTarget, viewMode]);
+    setPendingLineTarget(null);
+  }, [activeFile, editorValue, pendingLineTarget, viewMode]);
 
   useEffect(() => {
     if (!config?.rootExists || !workspaceIndex || normalizedQuery.length < contentSearchMinLength) {
@@ -586,7 +582,18 @@ function App() {
   }
 
   function selectNote(note: NoteFilePayload["note"]) {
-    openNote(note);
+    if (!openNote(note)) {
+      return;
+    }
+
+    const searchLineTarget = lineTargetForSearchResult(searchResultByPath.get(note.rootRelativePath));
+    if (!searchLineTarget) {
+      return;
+    }
+
+    setViewMode((current) => (current === "edit" ? "edit" : "split"));
+    setPendingLineTarget(searchLineTarget);
+    setNotice(`Opened ${note.title} at search match line ${searchLineTarget.line}.`);
   }
 
   function selectRepo(repoName: string) {
@@ -649,7 +656,7 @@ function App() {
     }
 
     setViewMode((current) => (current === "split" ? "split" : "edit"));
-    setPendingReviewTarget({ rootRelativePath: issue.rootRelativePath, line: issue.line });
+    setPendingLineTarget({ rootRelativePath: issue.rootRelativePath, line: issue.line });
     setNotice(issue.line ? `Opened ${issue.title} at line ${issue.line}.` : `Opened ${issue.title}.`);
   }
 

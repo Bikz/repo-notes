@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
-import type { DocReviewIssue, NoteSummary, RepoSummary } from "../shared/types";
+import type { DocReviewIssue, DocSearchResult, NoteSummary, RepoSummary } from "../shared/types";
 import {
   filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
   groupNotesByRecency,
   lineStartOffsetForLine,
+  lineTargetForSearchResult,
   nextReviewIssueLimit,
   resolveCreateRepoName,
   resolvePreferredCreateRepoName,
@@ -111,6 +112,25 @@ test("lineStartOffsetForLine maps 1-based lines to textarea offsets", () => {
   expect(lineStartOffsetForLine("one\r\ntwo\r\nthree", 2)).toBe(5);
   expect(lineStartOffsetForLine("one\ntwo\nthree", 99)).toBe(13);
   expect(lineStartOffsetForLine("one\ntwo\nthree", 0)).toBe(0);
+});
+
+test("lineTargetForSearchResult only targets content matches with line numbers", () => {
+  const searchedNote = note("alpha", "docs/README.md", "README", 100);
+  const contentMatch: DocSearchResult = {
+    note: searchedNote,
+    matchKind: "content",
+    line: 4,
+    snippet: "Launch checklist",
+  };
+
+  expect(lineTargetForSearchResult(contentMatch)).toEqual({
+    rootRelativePath: "alpha/docs/README.md",
+    line: 4,
+  });
+  expect(lineTargetForSearchResult({ ...contentMatch, matchKind: "metadata" })).toBeNull();
+  expect(lineTargetForSearchResult({ ...contentMatch, line: undefined })).toBeNull();
+  expect(lineTargetForSearchResult({ ...contentMatch, line: 0 })).toBeNull();
+  expect(lineTargetForSearchResult(undefined)).toBeNull();
 });
 
 const dayMs = 24 * 60 * 60 * 1000;

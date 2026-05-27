@@ -98,3 +98,7 @@
 - Added pure helper coverage for review filtering and line-to-textarea offset mapping, plus server coverage that TODO and broken-link findings carry line numbers.
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-review-filters-line-jump.png`
+- Extended line-aware navigation to content search results: clicking a body match now opens the note in an editor-visible split view, preserves the search context, focuses the editor, and jumps to the matched line.
+- Added helper coverage so only content search matches with positive line numbers create editor jump targets.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-search-result-line-jump.png`
