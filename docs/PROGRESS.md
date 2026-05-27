@@ -184,3 +184,7 @@
 - Browser proof used a disposable workspace, selected text in the Markdown editor, applied bold and link formatting through keyboard shortcuts, saved the note, and verified both Markdown wrappers persisted on disk:
   - `output/playwright/repo-notes-markdown-shortcuts.png`
 - Markdown shortcut validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.
+- Improved template creation ergonomics so repeated product docs do not start from a path that is guaranteed to fail. The New note drawer now uses the selected repo's current note metadata to suggest the next available template path, such as `docs/prd/new-prd-2.md`, while leaving custom drafts alone.
+- Browser proof used a disposable workspace with an existing `docs/prd/new-prd.md`, selected the PRD template, verified the drawer suggested `docs/prd/new-prd-2.md`, created the second PRD, and confirmed the original file was unchanged:
+  - `output/playwright/repo-notes-unique-template-path.png`
+- Collision-aware template path validation passed with `bun test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run smoke`, `git diff --check`, and Playwright browser proof through system Chrome.

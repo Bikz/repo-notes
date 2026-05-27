@@ -30,6 +30,7 @@ import {
   resolvePreferredCreateRepoName,
   searchResultLimitMessage,
   sortNotes,
+  suggestAvailableCreatePath,
 } from "./note-utils";
 
 const notes: NoteSummary[] = [
@@ -106,6 +107,33 @@ test("applyCreateTemplate preserves repo context while replacing template-contro
   });
 });
 
+test("suggestAvailableCreatePath appends numeric suffixes before the extension when paths already exist", () => {
+  expect(suggestAvailableCreatePath("docs/prd/new-prd.md", [])).toBe("docs/prd/new-prd.md");
+  expect(
+    suggestAvailableCreatePath("docs/prd/new-prd.md", [
+      "docs/prd/new-prd.md",
+      "docs/prd/new-prd-2.md",
+    ]),
+  ).toBe("docs/prd/new-prd-3.md");
+  expect(suggestAvailableCreatePath("notes/new-note.md", ["Notes/New-Note.md"])).toBe("notes/new-note-2.md");
+});
+
+test("applyCreateTemplate can suggest the next available path for the selected repo", () => {
+  expect(
+    applyCreateTemplate({
+      repoName: "alpha",
+      templateId: "blank",
+      repoRelativePath: "notes/new-note.md",
+      content: "# New note\n\n",
+    }, "prd", ["docs/prd/new-prd.md"]),
+  ).toEqual({
+    repoName: "alpha",
+    templateId: "prd",
+    repoRelativePath: "docs/prd/new-prd-2.md",
+    content: createTemplateById("prd").content,
+  });
+});
+
 test("isCreateDraftDirty compares against the selected template defaults", () => {
   expect(
     isCreateDraftDirty({
@@ -123,6 +151,20 @@ test("isCreateDraftDirty compares against the selected template defaults", () =>
       content: createTemplateById("prd").content,
     }),
   ).toBe(true);
+});
+
+test("isCreateDraftDirty treats available-path template suggestions as clean defaults", () => {
+  expect(
+    isCreateDraftDirty(
+      {
+        repoName: "alpha",
+        templateId: "prd",
+        repoRelativePath: "docs/prd/new-prd-2.md",
+        content: createTemplateById("prd").content,
+      },
+      ["docs/prd/new-prd.md"],
+    ),
+  ).toBe(false);
 });
 
 test("applyMarkdownFormat wraps selected text for bold, link, and inline code actions", () => {

@@ -1169,10 +1169,7 @@ function App() {
     const preferredRepoName = resolvePreferredCreateRepoName(repoFilter, selectedNote?.repoName);
     setIsMoreOpen(false);
     setIsMoveOpen(false);
-    setCreateForm((current) => ({
-      ...current,
-      repoName: resolveCreateRepoName(current.repoName, repos, preferredRepoName),
-    }));
+    setCreateForm((current) => createDraftForRepo(current, resolveCreateRepoName(current.repoName, repos, preferredRepoName)));
     setIsCreateOpen(true);
   }
 
@@ -1181,7 +1178,10 @@ function App() {
       return false;
     }
 
-    if (isCreateDraftDirty(createForm) && !window.confirm("Discard this new-note draft?")) {
+    if (
+      isCreateDraftDirty(createForm, repoRelativePathsForCreateRepo(createForm.repoName)) &&
+      !window.confirm("Discard this new-note draft?")
+    ) {
       return false;
     }
 
@@ -1259,6 +1259,19 @@ function App() {
     setViewMode((current) => (current === "edit" ? "edit" : "split"));
     setPendingLineTarget({ rootRelativePath: selectedNote.rootRelativePath, line: item.line });
     setNotice(`Opened ${item.title} at line ${item.line}.`);
+  }
+
+  function repoRelativePathsForCreateRepo(repoName: string) {
+    return notes.filter((note) => note.repoName === repoName).map((note) => note.repoRelativePath);
+  }
+
+  function createDraftForRepo(draft: CreateFormState, repoName: string): CreateFormState {
+    const nextDraft = { ...draft, repoName };
+    if (isCreateDraftDirty(draft, repoRelativePathsForCreateRepo(draft.repoName))) {
+      return nextDraft;
+    }
+
+    return applyCreateTemplate(nextDraft, draft.templateId, repoRelativePathsForCreateRepo(repoName));
   }
 
   function applyEditorFormat(action: MarkdownFormatAction) {
@@ -2166,7 +2179,7 @@ function App() {
                   <span>Repo</span>
                   <select
                     value={createForm.repoName}
-                    onChange={(event) => setCreateForm((current) => ({ ...current, repoName: event.target.value }))}
+                    onChange={(event) => setCreateForm((current) => createDraftForRepo(current, event.target.value))}
                     required
                   >
                     <option value="" disabled>
@@ -2185,7 +2198,11 @@ function App() {
                     value={createForm.templateId}
                     onChange={(event) =>
                       setCreateForm((current) =>
-                        applyCreateTemplate(current, event.target.value as CreateTemplateId),
+                        applyCreateTemplate(
+                          current,
+                          event.target.value as CreateTemplateId,
+                          repoRelativePathsForCreateRepo(current.repoName),
+                        ),
                       )
                     }
                   >

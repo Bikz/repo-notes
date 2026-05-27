@@ -52,7 +52,7 @@ The Markdown editor is a controlled browser textarea backed by the active note c
 
 ## Creation Templates
 
-The new-note drawer owns lightweight document templates for common product-team docs: blank notes, PRDs, RFCs, decision records, and runbooks. Templates are client-side defaults only. Selecting one updates the draft path and content fields, and the final create action still uses the normal `POST /api/files` API with the same workspace, repository, extension, ignored-directory, no-overwrite, and symlink-boundary checks as any other created note.
+The new-note drawer owns lightweight document templates for common product-team docs: blank notes, PRDs, RFCs, decision records, and runbooks. Templates are client-side defaults only. Selecting one updates the draft path and content fields, using the current metadata index to suggest the next available repo-relative path when the default already exists. The final create action still uses the normal `POST /api/files` API with the same workspace, repository, extension, ignored-directory, no-overwrite, and symlink-boundary checks as any other created note.
 
 ## Storage
 

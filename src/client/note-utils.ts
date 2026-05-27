@@ -224,14 +224,40 @@ export function createTemplateById(id: CreateTemplateId) {
 export function applyCreateTemplate(
   draft: CreateDraftFields,
   templateId: CreateTemplateId,
+  existingRepoRelativePaths: string[] = [],
 ): CreateDraftFields & { templateId: CreateTemplateId } {
   const template = createTemplateById(templateId);
   return {
     repoName: draft.repoName,
     templateId: template.id,
-    repoRelativePath: template.defaultPath,
+    repoRelativePath: suggestAvailableCreatePath(template.defaultPath, existingRepoRelativePaths),
     content: template.content,
   };
+}
+
+export function suggestAvailableCreatePath(defaultPath: string, existingRepoRelativePaths: string[]) {
+  const normalizedExistingPaths = new Set(existingRepoRelativePaths.map((path) => path.trim().toLowerCase()));
+  const normalizedDefaultPath = defaultPath.trim().toLowerCase();
+  if (!normalizedExistingPaths.has(normalizedDefaultPath)) {
+    return defaultPath;
+  }
+
+  const lastSlashIndex = defaultPath.lastIndexOf("/");
+  const directory = lastSlashIndex === -1 ? "" : defaultPath.slice(0, lastSlashIndex + 1);
+  const fileName = lastSlashIndex === -1 ? defaultPath : defaultPath.slice(lastSlashIndex + 1);
+  const extensionIndex = fileName.lastIndexOf(".");
+  const hasExtension = extensionIndex > 0;
+  const stem = hasExtension ? fileName.slice(0, extensionIndex) : fileName;
+  const extension = hasExtension ? fileName.slice(extensionIndex) : "";
+
+  for (let suffix = 2; suffix < 10_000; suffix += 1) {
+    const candidate = `${directory}${stem}-${suffix}${extension}`;
+    if (!normalizedExistingPaths.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+
+  return `${directory}${stem}-${Date.now()}${extension}`;
 }
 
 export function applyMarkdownFormat(
@@ -477,9 +503,10 @@ export function appShortcutForKey(event: ShortcutKeyEvent): AppShortcut | null {
   }
 }
 
-export function isCreateDraftDirty(draft: CreateDraftFields) {
+export function isCreateDraftDirty(draft: CreateDraftFields, existingRepoRelativePaths: string[] = []) {
   const template = createTemplateById(draft.templateId ?? "blank");
-  return draft.repoRelativePath.trim() !== template.defaultPath || draft.content !== template.content;
+  const suggestedPath = suggestAvailableCreatePath(template.defaultPath, existingRepoRelativePaths);
+  return draft.repoRelativePath.trim() !== suggestedPath || draft.content !== template.content;
 }
 
 export function isSaveConflictError(error: unknown) {

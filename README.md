@@ -30,7 +30,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Delete obsolete notes with disk-change protection.
 - Recover cleanly when a note changed on disk before saving.
 - Use editor-grade keyboard shortcuts for save, search, new note, and dismissing transient panels.
-- Create new supported files inside a selected repository from blank, PRD, RFC, decision, and runbook templates.
+- Create new supported files inside a selected repository from blank, PRD, RFC, decision, and runbook templates with collision-aware path suggestions.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.
 - Warm an in-memory content cache after indexing so repeated docs searches avoid rereading every file.
 - Reopen to the last valid repo, note, sort, view mode, and projects-pane state without storing note contents.
