@@ -102,3 +102,7 @@
 - Added helper coverage so only content search matches with positive line numbers create editor jump targets.
 - Browser proof used a disposable workspace and then restored the real workspace root:
   - `output/playwright/repo-notes-search-result-line-jump.png`
+- Added a Markdown document outline to the reader so long product docs can be navigated by section without leaving the selected note.
+- The outline parser ignores fenced-code headings, deduplicates generated section IDs, and feeds the existing line-target behavior so section clicks open split view and focus the editor at the section line.
+- Browser proof used a disposable workspace and then restored the real workspace root:
+  - `output/playwright/repo-notes-outline-section-jump.png`

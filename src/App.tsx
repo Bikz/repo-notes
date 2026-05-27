@@ -6,6 +6,7 @@ import {
   FilePlus2,
   Folder,
   ListFilter,
+  ListTree,
   Loader2,
   MoreHorizontal,
   PanelLeft,
@@ -19,8 +20,9 @@ import { marked } from "marked";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { NoteLineTarget, NoteSortMode } from "./client/note-utils";
+import type { NoteLineTarget, NoteOutlineItem, NoteSortMode } from "./client/note-utils";
 import {
+  extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
@@ -271,6 +273,14 @@ function App() {
     }
 
     return DOMPurify.sanitize(`<pre>${escapeHtml(editorValue)}</pre>`);
+  }, [activeFile, editorValue]);
+
+  const noteOutline = useMemo(() => {
+    if (!activeFile || activeFile.note.kind !== "markdown") {
+      return [];
+    }
+
+    return extractMarkdownOutline(editorValue);
   }, [activeFile, editorValue]);
 
   useEffect(() => {
@@ -658,6 +668,16 @@ function App() {
     setViewMode((current) => (current === "split" ? "split" : "edit"));
     setPendingLineTarget({ rootRelativePath: issue.rootRelativePath, line: issue.line });
     setNotice(issue.line ? `Opened ${issue.title} at line ${issue.line}.` : `Opened ${issue.title}.`);
+  }
+
+  function openOutlineItem(item: NoteOutlineItem) {
+    if (!selectedNote) {
+      return;
+    }
+
+    setViewMode((current) => (current === "edit" ? "edit" : "split"));
+    setPendingLineTarget({ rootRelativePath: selectedNote.rootRelativePath, line: item.line });
+    setNotice(`Opened ${item.title} at line ${item.line}.`);
   }
 
   return (
@@ -1166,6 +1186,27 @@ function App() {
                 </div>
               </div>
               <div className="note-date">{formatFullDateTime(selectedNote.updatedAtMs)}</div>
+              {noteOutline.length > 0 && (
+                <nav className="note-outline" aria-label="Document outline">
+                  <div className="note-outline-label">
+                    <ListTree size={14} />
+                    <span>Outline</span>
+                  </div>
+                  <div className="note-outline-list">
+                    {noteOutline.map((item) => (
+                      <button
+                        className={`outline-chip level-${Math.min(item.level, 4)}`}
+                        key={item.id}
+                        type="button"
+                        onClick={() => openOutlineItem(item)}
+                      >
+                        <span>{item.title}</span>
+                        <em>{item.line}</em>
+                      </button>
+                    ))}
+                  </div>
+                </nav>
+              )}
               <div className={`reader-body mode-${viewMode}`}>
                 {viewMode !== "edit" && (
                   <article

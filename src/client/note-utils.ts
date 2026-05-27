@@ -22,6 +22,13 @@ export interface NoteGroup {
   notes: NoteSummary[];
 }
 
+export interface NoteOutlineItem {
+  id: string;
+  line: number;
+  level: number;
+  title: string;
+}
+
 export function filterNotes(notes: NoteSummary[], repoFilter: string, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -112,6 +119,46 @@ export function lineTargetForSearchResult(result?: DocSearchResult | null): Note
   };
 }
 
+export function extractMarkdownOutline(content: string): NoteOutlineItem[] {
+  const outline: NoteOutlineItem[] = [];
+  const usedSlugs = new Map<string, number>();
+  let isInFence = false;
+
+  content.split(/\r?\n/).forEach((line, index) => {
+    if (/^\s*(```|~~~)/.test(line)) {
+      isInFence = !isInFence;
+      return;
+    }
+
+    if (isInFence) {
+      return;
+    }
+
+    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+    if (!match) {
+      return;
+    }
+
+    const title = match[2]?.trim();
+    if (!title) {
+      return;
+    }
+
+    const baseSlug = slugForHeading(title);
+    const seenCount = usedSlugs.get(baseSlug) ?? 0;
+    usedSlugs.set(baseSlug, seenCount + 1);
+
+    outline.push({
+      id: `heading-${index + 1}-${seenCount === 0 ? baseSlug : `${baseSlug}-${seenCount + 1}`}`,
+      line: index + 1,
+      level: match[1]?.length ?? 1,
+      title,
+    });
+  });
+
+  return outline;
+}
+
 export function groupNotesByRecency(notes: NoteSummary[], nowMs = Date.now()): NoteGroup[] {
   const buckets: NoteGroup[] = [
     { title: "Today", notes: [] },
@@ -196,6 +243,13 @@ function compareNotePaths(left: NoteSummary, right: NoteSummary) {
   }
 
   return left.repoRelativePath.localeCompare(right.repoRelativePath);
+}
+
+function slugForHeading(title: string) {
+  return title
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "") || "section";
 }
 
 const dayMs = 24 * 60 * 60 * 1000;

@@ -20,6 +20,7 @@ It skips generated, hidden, artifact, virtual environment, and dependency folder
 - Render notes from every child repository in one searchable surface.
 - Search titles, paths, repository names, and note contents with bounded local snippets.
 - Preview Markdown, plain text, and HTML with client-side sanitization.
+- Jump between Markdown sections from an in-file outline.
 - Edit existing files in place.
 - Create new supported files inside a selected repository.
 - Open quickly from a local metadata cache, then refresh that index from disk in the background.

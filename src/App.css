@@ -1122,6 +1122,80 @@ button {
   text-align: center;
 }
 
+.note-outline {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0d0d0e;
+}
+
+.note-outline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #8f8f95;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.note-outline-list {
+  min-width: 0;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.outline-chip {
+  max-width: 220px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #d8d8dc;
+  background: #1a1a1c;
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.outline-chip:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: #242426;
+}
+
+.outline-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-chip em {
+  color: #85858b;
+  font-style: normal;
+  font-weight: 760;
+}
+
+.outline-chip.level-2 {
+  color: #cfcfd4;
+}
+
+.outline-chip.level-3,
+.outline-chip.level-4 {
+  color: #b9b9bf;
+  background: #161617;
+}
+
 .reader-body {
   flex: 1;
   min-height: 0;
@@ -1474,6 +1548,12 @@ button {
 
   .rendered-note {
     padding: 18px 20px 36px;
+  }
+
+  .note-outline {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 12px;
   }
 
   .editor {

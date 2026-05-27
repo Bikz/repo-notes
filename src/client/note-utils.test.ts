@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { DocReviewIssue, DocSearchResult, NoteSummary, RepoSummary } from "../shared/types";
 import {
+  extractMarkdownOutline,
   filterReviewIssues,
   filterNotes,
   groupNotesByLocation,
@@ -131,6 +132,41 @@ test("lineTargetForSearchResult only targets content matches with line numbers",
   expect(lineTargetForSearchResult({ ...contentMatch, line: undefined })).toBeNull();
   expect(lineTargetForSearchResult({ ...contentMatch, line: 0 })).toBeNull();
   expect(lineTargetForSearchResult(undefined)).toBeNull();
+});
+
+test("extractMarkdownOutline returns ATX headings with line numbers outside fenced code", () => {
+  expect(
+    extractMarkdownOutline(
+      [
+        "# Product Brief",
+        "",
+        "```md",
+        "## Not a section",
+        "```",
+        "## Goals ##",
+        "### Launch scope",
+        "#### Too deep but still useful",
+        "#No heading",
+      ].join("\n"),
+    ),
+  ).toEqual([
+    { id: "heading-1-product-brief", line: 1, level: 1, title: "Product Brief" },
+    { id: "heading-6-goals", line: 6, level: 2, title: "Goals" },
+    { id: "heading-7-launch-scope", line: 7, level: 3, title: "Launch scope" },
+    { id: "heading-8-too-deep-but-still-useful", line: 8, level: 4, title: "Too deep but still useful" },
+  ]);
+});
+
+test("extractMarkdownOutline deduplicates generated ids", () => {
+  expect(
+    extractMarkdownOutline(
+      [
+        "## Overview",
+        "## Overview",
+        "### Overview!",
+      ].join("\n"),
+    ).map((heading) => heading.id),
+  ).toEqual(["heading-1-overview", "heading-2-overview-2", "heading-3-overview-3"]);
 });
 
 const dayMs = 24 * 60 * 60 * 1000;
